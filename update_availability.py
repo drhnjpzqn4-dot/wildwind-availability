@@ -408,11 +408,11 @@ def generate_html(data):
                     )}}
                     
                     <footer>
-                        <a href="mailto:pia@seafari.se?subject=Wildwind%20bokningsförfrågan" className="contact-btn">
+                        <a href="mailto:pia@wildwind.se?subject=Wildwind%20bokningsförfrågan" className="contact-btn">
                             ✉️ Skicka bokningsförfrågan
                         </a>
                         <p style={{{{marginTop: '30px'}}}}>
-                            Vid frågor, kontakta <a href="mailto:pia@seafari.se" style={{{{color: '#4facfe'}}}}>pia@seafari.se</a>
+                            Vid frågor, kontakta <a href="mailto:pia@wildwind.se" style={{{{color: '#4facfe'}}}}>pia@wildwind.se</a>
                         </p>
                     </footer>
                 </div>

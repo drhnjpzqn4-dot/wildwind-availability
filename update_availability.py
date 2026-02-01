@@ -333,7 +333,7 @@ def generate_html(data):
                 <div className="container">
                     <header>
                         <h1>⛵ WILDWIND 2026</h1>
-                        <p className="subtitle">Rumstillgänglighet • Uppdaterad {data.generated}</p>
+                        <p className="subtitle">Rumstillgänglighet • Uppdaterad {{data.generated}}</p>
                     </header>
                     
                     <div className="stats-bar">

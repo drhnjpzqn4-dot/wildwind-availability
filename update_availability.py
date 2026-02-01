@@ -112,7 +112,7 @@ def generate_html(data):
             text-align: center; 
             padding: 30px 0;
             border-bottom: 1px solid rgba(255,255,255,0.1);
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }}
         h1 {{ 
             font-size: 2.5rem; 
@@ -124,6 +124,19 @@ def generate_html(data):
             -webkit-text-fill-color: transparent;
         }}
         .subtitle {{ color: #7a8fa6; font-size: 0.9rem; }}
+        .info-box {{
+            background: rgba(79,172,254,0.1);
+            border: 1px solid rgba(79,172,254,0.3);
+            border-radius: 10px;
+            padding: 15px 20px;
+            margin-bottom: 25px;
+            text-align: center;
+            font-size: 0.9rem;
+            color: #b8c5d4;
+        }}
+        .info-box strong {{
+            color: #4facfe;
+        }}
         .controls {{ 
             display: flex; 
             gap: 15px; 
@@ -215,33 +228,6 @@ def generate_html(data):
         .week-label {{ font-weight: 600; }}
         .week-num {{ font-size: 0.65rem; opacity: 0.7; }}
         
-        .summary-section {{ margin-bottom: 40px; }}
-        .summary-title {{
-            font-size: 1.2rem;
-            color: #4facfe;
-            margin-bottom: 15px;
-            padding-left: 10px;
-            border-left: 3px solid #4facfe;
-        }}
-        .stats-bar {{
-            display: flex;
-            gap: 30px;
-            justify-content: center;
-            padding: 20px;
-            background: rgba(255,255,255,0.03);
-            border-radius: 12px;
-            margin-bottom: 30px;
-        }}
-        .stat-item {{ text-align: center; }}
-        .stat-value {{ 
-            font-size: 2rem; 
-            font-weight: 700;
-            background: linear-gradient(90deg, #4facfe, #00f2fe);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }}
-        .stat-label {{ font-size: 0.8rem; color: #7a8fa6; }}
-        
         .week-section {{ margin-bottom: 30px; }}
         .week-header {{
             display: flex;
@@ -298,7 +284,6 @@ def generate_html(data):
             h1 {{ font-size: 1.8rem; }}
             .controls {{ flex-direction: column; align-items: stretch; }}
             .filter-btn {{ text-align: center; }}
-            .stats-bar {{ flex-wrap: wrap; gap: 20px; }}
         }}
     </style>
 </head>
@@ -319,11 +304,6 @@ def generate_html(data):
                 return true;
             }});
             
-            const totalSlots = data.rooms.length * data.saturdays.length;
-            const availableSlots = data.rooms.reduce((sum, room) => 
-                sum + data.saturdays.filter(sat => room.availability[sat.date]?.available).length, 0
-            );
-            
             const roomsPerWeek = data.saturdays.map(sat => ({{
                 ...sat,
                 rooms: data.rooms.filter(room => room.availability[sat.date]?.available)
@@ -333,26 +313,13 @@ def generate_html(data):
                 <div className="container">
                     <header>
                         <h1>⛵ WILDWIND 2026</h1>
-                        <p className="subtitle">Rumstillgänglighet • Uppdaterad {{data.generated}}</p>
+                        <p className="subtitle">Rumstillgänglighet (lördag–lördag) • Uppdaterad {{data.generated}}</p>
                     </header>
                     
-                    <div className="stats-bar">
-                        <div className="stat-item">
-                            <div className="stat-value">{{data.rooms.length}}</div>
-                            <div className="stat-label">Rum tillgängliga</div>
-                        </div>
-                        <div className="stat-item">
-                            <div className="stat-value">{{data.saturdays.length}}</div>
-                            <div className="stat-label">Veckor</div>
-                        </div>
-                        <div className="stat-item">
-                            <div className="stat-value">{{availableSlots}}</div>
-                            <div className="stat-label">Lediga platser</div>
-                        </div>
-                        <div className="stat-item">
-                            <div className="stat-value">{{Math.round(availableSlots/totalSlots*100)}}%</div>
-                            <div className="stat-label">Tillgänglighet</div>
-                        </div>
+                    <div className="info-box">
+                        <strong>Observera:</strong> Vissa rum kan vara preliminärt bokade utan att det syns här. 
+                        Vi håller normalt rum reserverade i 48 timmar innan bokningen bekräftas i systemet.
+                        Kontakta oss för att säkerställa tillgänglighet.
                     </div>
                     
                     <div className="view-toggle">
@@ -445,7 +412,6 @@ def generate_html(data):
                             ✉️ Skicka bokningsförfrågan
                         </a>
                         <p style={{{{marginTop: '30px'}}}}>
-                            Sidan uppdateras automatiskt varje morgon kl 06:00<br/>
                             Vid frågor, kontakta <a href="mailto:pia@seafari.se" style={{{{color: '#4facfe'}}}}>pia@seafari.se</a>
                         </p>
                     </footer>

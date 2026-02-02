@@ -54,10 +54,14 @@ def parse_availability(excel_path):
         building = str(df.iloc[row-1, 0]).strip() if pd.notna(df.iloc[row-1, 0]) else ""
         room_num = str(df.iloc[row-1, 1]).strip() if pd.notna(df.iloc[row-1, 1]) else ""
         
+        # Clean up building name (XRISTINA a -> XRISTINA)
+        building = building.replace("XRISTINA a", "XRISTINA")
+        
         # Clean up room name
         room_name = f"{building} {room_num}".strip()
         room_name = room_name.replace("     ", " ").replace("    ", " ").replace("   ", " ").replace("  ", " ")
         room_name = room_name.replace("EU OR UK  ROOM", "EU/UK").replace("EU ROOM", "EU")
+        room_name = room_name.replace("XRISTINA a", "XRISTINA")
         
         availability = {}
         for sat in saturdays:
@@ -94,8 +98,12 @@ def generate_html(data):
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Wildwind">
     <title>Wildwind Rumstillgänglighet 2026</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛵</text></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxODAgMTgwIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImJnIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjMGMxOTI5Ii8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMWEzYTVjIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjE4MCIgaGVpZ2h0PSIxODAiIGZpbGw9InVybCgjYmcpIiByeD0iMzYiLz48dGV4dCB4PSI5MCIgeT0iMTI1IiBmb250LXNpemU9IjEwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+4pyIPC90ZXh0Pjwvc3ZnPg==">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>

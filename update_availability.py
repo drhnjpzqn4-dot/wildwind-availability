@@ -65,11 +65,39 @@ def parse_availability(excel_path):
         
         availability = {}
         for sat in saturdays:
-            cell_value = df.iloc[row-1, sat['col']]
-            is_available = pd.isna(cell_value) or str(cell_value).strip() == ""
+            sat_col = sat['col']
+            
+            # Check ALL 7 days in the week (Saturday + 6 more days)
+            week_booked = False
+            week_on_hold = False
+            booked_by = ""
+            
+            for day_offset in range(7):
+                col = sat_col + (day_offset * 2)  # Every other column
+                if col < len(df.columns):
+                    cell_val = df.iloc[row-1, col]
+                    # Check "on hold" 2 rows below
+                    hold_val = df.iloc[row+1, col] if row+1 < len(df) else None
+                    
+                    if pd.notna(cell_val) and str(cell_val).strip():
+                        week_booked = True
+                        if not booked_by:
+                            booked_by = str(cell_val).strip()[:25]
+                    
+                    if pd.notna(hold_val) and 'hold' in str(hold_val).lower():
+                        week_on_hold = True
+            
+            # Determine status: on_hold, booked, or available
+            if week_on_hold:
+                status = 'on_hold'
+            elif week_booked:
+                status = 'booked'
+            else:
+                status = 'available'
+            
             availability[sat['date']] = {
-                'available': is_available,
-                'bookedBy': "" if is_available else str(cell_value)[:25]
+                'status': status,
+                'bookedBy': booked_by
             }
         
         rooms_data.append({
@@ -145,6 +173,28 @@ def generate_html(data):
         .info-box strong {{
             color: #4facfe;
         }}
+        .legend {{
+            display: flex;
+            justify-content: center;
+            gap: 25px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }}
+        .legend-item {{
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: #b8c5d4;
+        }}
+        .legend-dot {{
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+        }}
+        .legend-dot.available {{ background: linear-gradient(135deg, #00d26a, #00a854); }}
+        .legend-dot.on-hold {{ background: linear-gradient(135deg, #ff9500, #ff7b00); }}
+        .legend-dot.booked {{ background: rgba(255,255,255,0.1); }}
         .controls {{ 
             display: flex; 
             gap: 15px; 
@@ -226,6 +276,11 @@ def generate_html(data):
             color: #fff;
             font-weight: 500;
         }}
+        .week-cell.on_hold {{
+            background: linear-gradient(135deg, #ff9500, #ff7b00);
+            color: #fff;
+            font-weight: 500;
+        }}
         .week-cell.booked {{
             background: rgba(255,255,255,0.05);
             color: #5a6a7a;
@@ -265,6 +320,10 @@ def generate_html(data):
             padding: 8px 16px;
             border-radius: 8px;
             font-size: 0.85rem;
+        }}
+        .room-tag.on-hold {{
+            background: rgba(255,149,0,0.2);
+            border: 1px solid rgba(255,149,0,0.4);
         }}
         .contact-btn {{
             display: inline-block;
@@ -314,7 +373,8 @@ def generate_html(data):
             
             const roomsPerWeek = data.saturdays.map(sat => ({{
                 ...sat,
-                rooms: data.rooms.filter(room => room.availability[sat.date]?.available)
+                availableRooms: data.rooms.filter(room => room.availability[sat.date]?.status === 'available'),
+                onHoldRooms: data.rooms.filter(room => room.availability[sat.date]?.status === 'on_hold')
             }}));
             
             return (
@@ -328,6 +388,21 @@ def generate_html(data):
                         <strong>Observera:</strong> Vissa rum kan vara preliminärt bokade utan att det syns här. 
                         Vi håller normalt rum reserverade i 48 timmar innan bokningen bekräftas i systemet.
                         Kontakta oss för att säkerställa tillgänglighet.
+                    </div>
+                    
+                    <div className="legend">
+                        <div className="legend-item">
+                            <div className="legend-dot available"></div>
+                            <span>Ledigt</span>
+                        </div>
+                        <div className="legend-item">
+                            <div className="legend-dot on-hold"></div>
+                            <span>On hold (preliminärt)</span>
+                        </div>
+                        <div className="legend-item">
+                            <div className="legend-dot booked"></div>
+                            <span>Bokat</span>
+                        </div>
                     </div>
                     
                     <div className="view-toggle">
@@ -374,11 +449,12 @@ def generate_html(data):
                                     <div className="weeks-grid">
                                         {{data.saturdays.map(sat => {{
                                             const avail = room.availability[sat.date];
+                                            const status = avail?.status || 'booked';
                                             return (
                                                 <div 
                                                     key={{sat.date}}
-                                                    className={{`week-cell ${{avail?.available ? 'available' : 'booked'}}`}}
-                                                    title={{avail?.available ? 'Ledig' : avail?.bookedBy}}
+                                                    className={{`week-cell ${{status}}`}}
+                                                    title={{status === 'available' ? 'Ledigt' : (status === 'on_hold' ? 'On hold: ' + avail?.bookedBy : avail?.bookedBy)}}
                                                 >
                                                     <div className="week-label">{{sat.display}}</div>
                                                     <div className="week-num">v{{sat.weekNum}}</div>
@@ -398,15 +474,23 @@ def generate_html(data):
                                             {{week.display}} (v{{week.weekNum}})
                                         </span>
                                         <span className="week-count">
-                                            {{week.rooms.length}} lediga rum
+                                            {{week.availableRooms.length}} lediga
+                                            {{week.onHoldRooms.length > 0 && ` + ${{week.onHoldRooms.length}} on hold`}}
                                         </span>
                                     </div>
                                     <div className="rooms-list">
-                                        {{week.rooms
+                                        {{week.availableRooms
                                             .filter(r => buildingFilter === 'all' || r.building === buildingFilter)
                                             .map(room => (
                                             <span key={{room.row}} className="room-tag">
                                                 {{room.name}}
+                                            </span>
+                                        ))}}
+                                        {{week.onHoldRooms
+                                            .filter(r => buildingFilter === 'all' || r.building === buildingFilter)
+                                            .map(room => (
+                                            <span key={{room.row}} className="room-tag on-hold">
+                                                {{room.name}} (on hold)
                                             </span>
                                         ))}}
                                     </div>

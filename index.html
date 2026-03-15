@@ -1,334 +1,765 @@
-#!/usr/bin/env python3
-"""
-Wildwind Room Availability Updater
-Downloads Excel from Dropbox and generates availability.html (NOT index.html)
-"""
-
-import pandas as pd
-import json
-import requests
-from datetime import datetime, date
-from pathlib import Path
-
-# ─── CONFIG ───────────────────────────────────────────────────────────
-DROPBOX_URL = "https://www.dropbox.com/scl/fi/i0ji499omsoc0yl4fuzo7/STEPH-VERSION-ALL-ROOMS-2026.xlsx?rlkey=lq3j8vz7hdlnoqvairj0yp2ih&dl=1"
-OUTPUT_FILE = "availability.html"   # ← OBS: inte index.html
-
-# Excel-rader som Seafari AB kan boka (0-indexerade)
-ALLOWED_ROWS = [44, 48, 52, 56, 60, 140, 144, 148, 168, 184, 188, 192,
-                204, 208, 220, 224, 244, 248, 256, 264, 272, 284]
-
-# Sailing-priser 2026 (SEK/person/vecka, 2 delar rum)
-SAILING_PRICES = {
-    "Apr 25": 8990,  "May 2": 9430,   "May 9": 10300,  "May 16": 10840,
-    "May 23": 10840, "May 30": 11940, "Jun 06": 12700, "Jun 13": 13030,
-    "Jun 20": 13900, "Jun 27": 14120, "Jul 4": 14440,  "Jul 11": 14990,
-    "Jul 18": 15210, "Jul 25": 15210, "Aug 01": 15210, "Aug 8": 15210,
-    "Aug 15": 14120, "Aug 22": 12810, "Aug 29": 11940, "Sep 5": 11720,
-    "Sep 12": 11170, "Sep 19": 10300, "Sep 26": 9540,  "Oct 3": 8990,
-}
-
-# Mappning från Excel-datum (lördag) → prisliste-nyckel
-def date_to_price_key(dt):
-    """Matcha ett datum mot SAILING_PRICES-nycklar."""
-    if not isinstance(dt, (date, datetime)):
-        return None
-    month_abbr = dt.strftime("%b")   # "Apr", "May" etc
-    day = dt.day
-    key = f"{month_abbr} {day}"
-    if key in SAILING_PRICES:
-        return key
-    # Prova nollpaddat (Jun 06 etc)
-    key2 = f"{month_abbr} {day:02d}"
-    if key2 in SAILING_PRICES:
-        return key2
-    return None
-
-# ─── DOWNLOAD ─────────────────────────────────────────────────────────
-def download_excel():
-    print("📥 Laddar ner Excel från Dropbox...")
-    response = requests.get(DROPBOX_URL, timeout=30)
-    response.raise_for_status()
-    tmp = Path("temp_availability.xlsx")
-    tmp.write_bytes(response.content)
-    print(f"✅ {len(response.content):,} bytes")
-    return tmp
-
-# ─── PARSE ────────────────────────────────────────────────────────────
-def parse_availability(excel_path):
-    df = pd.read_excel(excel_path, header=None, engine="openpyxl")
-
-    # Hitta rubrikrad (innehåller datum-celler i rad 0 eller 1)
-    # Kolumner: rad = rum, kolumn = vecka (lördag)
-    # Hämta rad 0 som datum-headers
-    header_row = df.iloc[0]
-
-    weeks = []
-    for col_idx, val in enumerate(header_row):
-        if isinstance(val, (date, datetime)):
-            dt = val if isinstance(val, date) else val.date()
-            weeks.append({"col": col_idx, "date": dt})
-
-    rooms = []
-    for row_idx in ALLOWED_ROWS:
-        if row_idx >= len(df):
-            continue
-        row = df.iloc[row_idx]
-
-        # Rum-namn finns normalt i kolumn 0 eller 1
-        room_name = str(row.iloc[0]).strip() if pd.notna(row.iloc[0]) else ""
-        if not room_name or room_name.lower() in ("nan", ""):
-            room_name = str(row.iloc[1]).strip() if pd.notna(row.iloc[1]) else f"Rad {row_idx}"
-
-        week_status = []
-        for wk in weeks:
-            cell_val = row.iloc[wk["col"]] if wk["col"] < len(row) else None
-            if pd.isna(cell_val) or cell_val == "" or cell_val is None:
-                status = "available"
-            else:
-                val_str = str(cell_val).strip().lower()
-                if val_str in ("", "nan"):
-                    status = "available"
-                elif "hold" in val_str or "option" in val_str or "prel" in val_str:
-                    status = "on_hold"
-                else:
-                    status = "booked"
-            week_status.append(status)
-
-        rooms.append({"name": room_name, "weeks": week_status})
-
-    return {"weeks": weeks, "rooms": rooms}
-
-# ─── GENERATE HTML ────────────────────────────────────────────────────
-def generate_html(data):
-    weeks  = data["weeks"]
-    rooms  = data["rooms"]
-    now    = datetime.now().strftime("%d %b %Y, %H:%M")
-
-    # Bygg vecko-JSON med pris
-    weeks_json = []
-    for wk in weeks:
-        dt = wk["date"]
-        label = dt.strftime("%-d %b") if hasattr(dt, 'strftime') else str(dt)
-        price_key = date_to_price_key(dt)
-        price = SAILING_PRICES.get(price_key) if price_key else None
-        weeks_json.append({
-            "label": label,
-            "iso": dt.isoformat() if hasattr(dt, 'isoformat') else str(dt),
-            "price": price
-        })
-
-    rooms_json = rooms  # already serializable
-
-    data_js = f"const WEEKS = {json.dumps(weeks_json, ensure_ascii=False)};\n"
-    data_js += f"const ROOMS = {json.dumps(rooms_json, ensure_ascii=False)};\n"
-    data_js += f"const UPDATED = '{now}';\n"
-
-    html = f'''<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="sv">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Wildwind – Rumstillgänglighet 2026</title>
-<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@300;400;600&family=Cormorant+Garamond:wght@400;600&display=swap" rel="stylesheet"/>
+<title>Wildwind – Välj ditt boende i Vassiliki</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Nunito+Sans:wght@300;400;600&display=swap" rel="stylesheet"/>
 <style>
-:root {{
-  --azure: #0B3D72; --sky: #5BA4CF; --sand: #F5EDD8;
-  --green: #2E8B57; --orange: #E08C2A; --red: #C0392B;
-  --green-bg: #E8F5EE; --orange-bg: #FEF3E2; --red-bg: #FDECEC;
-  --white: #FDFAF5; --text: #2A2A2A; --text-mid: #666;
-}}
-* {{ box-sizing: border-box; margin: 0; padding: 0; }}
-body {{ font-family: 'Nunito Sans', sans-serif; background: var(--white); color: var(--text); font-size: 14px; }}
+:root {
+  --azure:      #0B3D72;
+  --azure-mid:  #1A5C9A;
+  --sky:        #5BA4CF;
+  --sand:       #F5EDD8;
+  --sand-dark:  #E6D5BA;
+  --white:      #FDFAF5;
+  --terra:      #C07245;
+  --gold:       #C9963A;
+  --text:       #2A2A2A;
+  --text-mid:   #555;
+  --text-light: #888;
+  --radius:     6px;
+}
 
-header {{
-  background: var(--azure); color: #fff;
-  padding: 20px 32px; display: flex; align-items: center; justify-content: space-between;
-}}
-header h1 {{ font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 400; }}
-header .updated {{ font-size: 12px; opacity: 0.6; }}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-.legend {{
-  display: flex; gap: 20px; padding: 14px 32px;
-  background: #fff; border-bottom: 1px solid #e8e0d0;
-  flex-wrap: wrap; align-items: center;
-}}
-.legend-item {{ display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; }}
-.dot {{ width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }}
-.dot-green  {{ background: var(--green); }}
-.dot-orange {{ background: var(--orange); }}
-.dot-red    {{ background: var(--red); }}
-.note {{ font-size: 11px; color: var(--text-mid); margin-left: auto; }}
+html { scroll-behavior: smooth; }
 
-.filter-bar {{
-  padding: 12px 32px; background: var(--sand);
-  display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
-}}
-.filter-bar label {{ font-size: 12px; font-weight: 600; color: var(--azure); }}
-.filter-bar select, .filter-bar input {{
-  padding: 6px 10px; border: 1px solid #ccc; border-radius: 20px;
-  font-family: inherit; font-size: 12px; background: #fff;
-}}
+body {
+  font-family: 'Nunito Sans', sans-serif;
+  background: var(--white);
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1.65;
+}
 
-.table-wrap {{ overflow-x: auto; padding: 24px 32px; }}
-table {{ border-collapse: collapse; min-width: 100%; }}
+/* ─── NAV ─── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: rgba(11, 61, 114, 0.96);
+  backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 40px;
+  height: 64px;
+}
+.nav-logo {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 22px; font-weight: 600;
+  color: #fff; text-decoration: none;
+  letter-spacing: 0.04em;
+}
+.nav-logo span { color: var(--gold); }
+.nav-links { display: flex; gap: 32px; list-style: none; }
+.nav-links a {
+  color: rgba(255,255,255,0.85);
+  text-decoration: none;
+  font-size: 13px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  transition: color .2s;
+}
+.nav-links a:hover { color: var(--gold); }
 
-th {{
-  background: var(--azure); color: #fff;
-  padding: 0; text-align: center; font-size: 11px;
-  font-weight: 600; white-space: nowrap; position: sticky; top: 0; z-index: 2;
-}}
-th .week-date {{ padding: 8px 10px 2px; display: block; }}
-th .week-price {{
-  display: block; padding: 2px 10px 8px;
-  font-size: 10px; font-weight: 400; opacity: 0.75;
-  color: #FFE099;
-}}
-th:first-child {{ text-align: left; min-width: 130px; padding: 8px 14px; position: sticky; left: 0; z-index: 3; }}
-
-td {{ padding: 0; border: 1px solid #e8e0d0; }}
-td:first-child {{
-  padding: 8px 14px; font-weight: 600; font-size: 12px;
-  background: #fff; position: sticky; left: 0; z-index: 1;
-  white-space: nowrap; border-right: 2px solid #d0c8b8;
-}}
-tr:nth-child(even) td:first-child {{ background: #faf6ee; }}
-
-.cell {{
-  width: 52px; height: 36px; display: flex;
-  align-items: center; justify-content: center;
-  font-size: 10px; font-weight: 700; cursor: default;
-  transition: opacity .15s;
-}}
-.cell:hover {{ opacity: 0.8; }}
-.cell-available {{ background: var(--green-bg); color: var(--green); }}
-.cell-on_hold   {{ background: var(--orange-bg); color: var(--orange); }}
-.cell-booked    {{ background: var(--red-bg); color: var(--red); }}
-
-.info-box {{
-  margin: 0 32px 32px; padding: 14px 20px;
-  background: #EDF3FA; border-left: 4px solid var(--sky);
-  border-radius: 6px; font-size: 12px; color: var(--text-mid); line-height: 1.6;
-}}
-.contact-btn {{
+/* ─── HERO ─── */
+.hero {
+  position: relative;
+  height: 92vh; min-height: 560px;
+  display: flex; align-items: flex-end;
+  overflow: hidden;
+}
+.hero-img {
+  position: absolute; inset: 0;
+  background: url('https://388cb386b0d7908468c4-d7f86a40e40caa5d570fbd7e2287a9d8.ssl.cf3.rackcdn.com/images/spotlights/1920x390/sailing-holidays-greece-accommodation.jpg') center/cover no-repeat;
+  transform: scale(1.04);
+  animation: heroZoom 12s ease-out forwards;
+}
+@keyframes heroZoom { to { transform: scale(1); } }
+.hero-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(11,61,114,0.82) 0%, rgba(11,61,114,0.15) 55%, transparent 100%);
+}
+.hero-content {
+  position: relative; z-index: 2;
+  padding: 0 60px 72px;
+  max-width: 780px;
+  animation: fadeUp 1.2s ease both;
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.hero-eyebrow {
+  font-size: 12px; font-weight: 600; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--gold);
+  margin-bottom: 12px;
+}
+.hero h1 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: clamp(38px, 6vw, 68px);
+  font-weight: 400; line-height: 1.1;
+  color: #fff; margin-bottom: 18px;
+}
+.hero h1 em { font-style: italic; color: var(--sand); }
+.hero p {
+  font-size: 16px; color: rgba(255,255,255,0.82);
+  max-width: 520px; margin-bottom: 36px;
+  font-weight: 300;
+}
+.hero-ctas { display: flex; gap: 16px; flex-wrap: wrap; }
+.btn {
   display: inline-flex; align-items: center; gap: 8px;
-  margin: 0 32px 32px; padding: 14px 28px;
-  background: var(--azure); color: #fff; border-radius: 40px;
-  text-decoration: none; font-size: 13px; font-weight: 600;
-  transition: background .2s;
-}}
-.contact-btn:hover {{ background: #1A5C9A; }}
+  padding: 14px 28px; border-radius: 40px;
+  font-size: 13px; font-weight: 600; letter-spacing: 0.06em;
+  text-decoration: none; text-transform: uppercase;
+  transition: all .25s; cursor: pointer; border: none;
+}
+.btn-primary { background: var(--gold); color: #fff; }
+.btn-primary:hover { background: #b8832e; transform: translateY(-1px); }
+.btn-outline { background: transparent; color: #fff; border: 1.5px solid rgba(255,255,255,0.5); }
+.btn-outline:hover { background: rgba(255,255,255,0.12); border-color: #fff; }
+
+/* ─── SECTIONS ─── */
+section { padding: 88px 40px; }
+.section-inner { max-width: 1200px; margin: 0 auto; }
+.section-label {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--terra);
+  margin-bottom: 10px;
+}
+.section-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: clamp(28px, 4vw, 44px); font-weight: 400;
+  color: var(--azure); margin-bottom: 14px; line-height: 1.2;
+}
+.section-sub {
+  font-size: 15px; color: var(--text-mid);
+  max-width: 560px; margin-bottom: 52px; font-weight: 300;
+}
+
+/* ─── PRISLISTA BANNER ─── */
+.price-banner {
+  background: var(--azure);
+  padding: 44px 40px;
+}
+.price-banner .section-inner {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 32px; align-items: center;
+}
+.price-intro { color: rgba(255,255,255,0.85); font-size: 15px; }
+.price-intro strong { display: block; color: #fff; font-size: 18px; margin-bottom: 6px; }
+.price-table-wrap { grid-column: 2 / 4; }
+.price-strip {
+  display: flex; flex-wrap: wrap; gap: 12px;
+}
+.price-chip {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 40px; padding: 8px 20px;
+  color: #fff; font-size: 13px;
+}
+.price-chip strong { color: var(--gold); }
+
+/* ─── HOTEL TABS ─── */
+.hotel-tabs { background: var(--white); }
+.tab-nav {
+  display: flex; gap: 0;
+  border-bottom: 2px solid var(--sand-dark);
+  margin-bottom: 52px; overflow-x: auto;
+}
+.tab-btn {
+  padding: 14px 28px; border: none; background: none;
+  font-family: 'Nunito Sans', sans-serif;
+  font-size: 13px; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--text-mid);
+  cursor: pointer; white-space: nowrap;
+  border-bottom: 3px solid transparent; margin-bottom: -2px;
+  transition: all .2s;
+}
+.tab-btn:hover { color: var(--azure); }
+.tab-btn.active { color: var(--azure); border-bottom-color: var(--azure); }
+
+.hotel-panel { display: none; }
+.hotel-panel.active { display: grid; grid-template-columns: 1fr 1.1fr; gap: 60px; align-items: start; }
+
+.hotel-gallery {
+  position: relative; border-radius: 12px; overflow: hidden;
+  aspect-ratio: 4/3;
+  box-shadow: 0 20px 60px rgba(11,61,114,0.18);
+}
+.hotel-gallery img {
+  width: 100%; height: 100%; object-fit: cover;
+  transition: transform .5s ease;
+}
+.hotel-gallery:hover img { transform: scale(1.03); }
+.gallery-thumbs {
+  display: flex; gap: 8px; margin-top: 10px;
+}
+.gallery-thumb {
+  width: 80px; height: 56px; object-fit: cover;
+  border-radius: 6px; cursor: pointer; opacity: 0.65;
+  transition: opacity .2s; border: 2px solid transparent;
+}
+.gallery-thumb.active, .gallery-thumb:hover { opacity: 1; border-color: var(--azure); }
+
+.hotel-info h2 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 36px; font-weight: 400; color: var(--azure);
+  margin-bottom: 6px;
+}
+.hotel-badge {
+  display: inline-block; background: var(--sand);
+  color: var(--terra); font-size: 11px; font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  padding: 4px 12px; border-radius: 20px; margin-bottom: 16px;
+}
+.hotel-desc {
+  font-size: 15px; color: var(--text-mid);
+  line-height: 1.7; margin-bottom: 28px; font-weight: 300;
+}
+.hotel-features {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  margin-bottom: 32px;
+}
+.feature-tag {
+  background: var(--sand); color: var(--azure);
+  font-size: 12px; font-weight: 600; padding: 6px 14px;
+  border-radius: 20px; letter-spacing: 0.04em;
+}
+
+/* Room table */
+.room-table-wrap { margin-top: 8px; }
+.room-table-title {
+  font-size: 12px; font-weight: 600; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--text-light);
+  margin-bottom: 12px;
+}
+.room-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.room-table thead th {
+  background: var(--azure); color: #fff;
+  padding: 10px 12px; text-align: left;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+}
+.room-table thead th:first-child { border-radius: 6px 0 0 0; }
+.room-table thead th:last-child  { border-radius: 0 6px 0 0; text-align: right; }
+.room-table tbody tr { border-bottom: 1px solid var(--sand-dark); transition: background .15s; }
+.room-table tbody tr:hover { background: var(--sand); }
+.room-table td { padding: 10px 12px; color: var(--text); vertical-align: middle; }
+.room-table td:last-child { text-align: right; font-weight: 600; color: var(--azure); }
+.room-tag {
+  display: inline-block;
+  background: var(--azure); color: #fff;
+  font-size: 11px; font-weight: 700; padding: 2px 8px;
+  border-radius: 4px; min-width: 44px; text-align: center;
+}
+.sleeps-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; color: var(--text-mid);
+}
+.note-season {
+  font-size: 12px; color: var(--terra); font-weight: 600;
+  margin-top: 10px; padding: 8px 12px;
+  background: rgba(192,114,69,0.08); border-radius: 6px;
+  border-left: 3px solid var(--terra);
+}
+
+/* ─── MAP ─── */
+.map-section { background: var(--sand); padding: 88px 40px; }
+.map-grid {
+  display: grid; grid-template-columns: 1fr 1.8fr;
+  gap: 52px; align-items: start;
+}
+.map-frame {
+  border-radius: 12px; overflow: hidden;
+  box-shadow: 0 16px 48px rgba(11,61,114,0.15);
+  height: 460px;
+}
+.map-frame iframe { width: 100%; height: 100%; border: 0; }
+
+/* ─── AVAILABILITY ─── */
+.avail-section { background: var(--azure); padding: 80px 40px; }
+.avail-section .section-title { color: #fff; }
+.avail-section .section-sub { color: rgba(255,255,255,0.7); }
+.avail-section .section-label { color: var(--gold); }
+.avail-frame {
+  border-radius: 12px; overflow: hidden;
+  background: #fff;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.avail-frame iframe { width: 100%; height: 680px; border: 0; }
+
+/* ─── PRISER SEKTION ─── */
+.prices-section { background: var(--white); }
+.prices-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 24px; margin-top: 12px;
+}
+.price-card {
+  background: var(--sand);
+  border-radius: 12px; padding: 32px 28px;
+  border-top: 4px solid var(--azure);
+  transition: transform .2s, box-shadow .2s;
+}
+.price-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(11,61,114,0.12); }
+.price-card-name {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 22px; color: var(--azure); margin-bottom: 4px;
+}
+.price-card-type { font-size: 12px; color: var(--text-light); margin-bottom: 20px; }
+.price-card-from { font-size: 12px; color: var(--text-mid); margin-bottom: 4px; }
+.price-card-amount {
+  font-size: 28px; font-weight: 300; color: var(--azure);
+  font-family: 'Cormorant Garamond', serif;
+}
+.price-card-amount sup { font-size: 14px; }
+.price-card-note { font-size: 11px; color: var(--text-light); margin-top: 8px; }
+
+/* ─── FOOTER ─── */
+footer {
+  background: #071E3D; color: rgba(255,255,255,0.6);
+  padding: 52px 40px; text-align: center;
+  font-size: 13px;
+}
+footer a { color: var(--gold); text-decoration: none; }
+footer strong { color: #fff; }
+
+/* ─── RESPONSIVE ─── */
+@media (max-width: 900px) {
+  .hotel-panel.active { grid-template-columns: 1fr; }
+  .map-grid { grid-template-columns: 1fr; }
+  .price-banner .section-inner { grid-template-columns: 1fr; }
+  .price-table-wrap { grid-column: 1; }
+  .prices-grid { grid-template-columns: 1fr 1fr; }
+  nav { padding: 0 20px; }
+  .hero-content { padding: 0 24px 56px; }
+  section { padding: 60px 24px; }
+}
+@media (max-width: 600px) {
+  .prices-grid { grid-template-columns: 1fr; }
+  .tab-btn { padding: 12px 16px; font-size: 11px; }
+  .nav-links { display: none; }
+}
 </style>
 </head>
 <body>
-<header>
-  <h1>Wildwind – Rumstillgänglighet 2026</h1>
-  <span class="updated">Uppdaterad: <span id="upd"></span></span>
-</header>
 
-<div class="legend">
-  <div class="legend-item"><div class="dot dot-green"></div> Ledig</div>
-  <div class="legend-item"><div class="dot dot-orange"></div> Preliminärt bokad</div>
-  <div class="legend-item"><div class="dot dot-red"></div> Bokad</div>
-  <span class="note">Alla veckor lördag–lördag &nbsp;·&nbsp; Sailing-pris per person/v (2 delar rum)</span>
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="#">Wild<span>wind</span></a>
+  <ul class="nav-links">
+    <li><a href="#boende">Boende</a></li>
+    <li><a href="#priser">Priser</a></li>
+    <li><a href="#karta">Karta</a></li>
+    <li><a href="#tillganglighet">Tillgänglighet</a></li>
+    <li><a href="mailto:info@wildwind.se">Kontakt</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-img"></div>
+  <div class="hero-overlay"></div>
+  <div class="hero-content">
+    <p class="hero-eyebrow">Vassiliki · Lefkas · Grekland</p>
+    <h1>Ditt rum vid<br/><em>det blå havet</em></h1>
+    <p>Välj bland handplockade rum och lägenheter – alla inom några steg från stranden, båtarna och det varma medelhavslivet.</p>
+    <div class="hero-ctas">
+      <a href="#boende" class="btn btn-primary">Se alla rum</a>
+      <a href="#tillganglighet" class="btn btn-outline">Kolla tillgänglighet</a>
+    </div>
+  </div>
+</section>
+
+<!-- PRISBANNER -->
+<div class="price-banner">
+  <div class="section-inner">
+    <div class="price-intro">
+      <strong>Semesterpris 2026</strong>
+      Grundpris per person/vecka (2 delar rum). Välj program och lägg till rumstillägg nedan.
+    </div>
+    <div class="price-table-wrap">
+      <div class="price-strip">
+        <div class="price-chip">Sailing <strong>fr. 8 990 kr</strong>/v</div>
+        <div class="price-chip">Free as the Wind <strong>fr. 14 000 kr</strong>/v</div>
+        <div class="price-chip">Healthy Options <strong>fr. 7 360 kr</strong>/v</div>
+        <div class="price-chip" style="border-color:rgba(201,150,58,0.5);">
+          <a href="https://wildwind.se/sommar-segling-semester-priser" target="_blank" style="color:var(--gold);text-decoration:none;">
+            ↗ Fullständig prislista på wildwind.se
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
-<div class="filter-bar">
-  <label>Filtrera:</label>
-  <input type="text" id="roomFilter" placeholder="Rum (t.ex. M3)" oninput="renderTable()"/>
-  <select id="statusFilter" onchange="renderTable()">
-    <option value="all">Alla statusar</option>
-    <option value="available">Visa bara lediga</option>
-  </select>
-  <select id="weekFilter" onchange="renderTable()">
-    <option value="all">Alla veckor</option>
-  </select>
-</div>
+<!-- BOENDE -->
+<section class="hotel-tabs" id="boende">
+  <div class="section-inner">
+    <p class="section-label">Välj ditt boende</p>
+    <h2 class="section-title">Fem unika boenden i Vassiliki</h2>
+    <p class="section-sub">Alla våra rum är EU-rum bokade via Seafari AB. Tillägg gäller per rum och vecka utöver grundpriset.</p>
 
-<div class="table-wrap">
-  <table id="avail-table"></table>
-</div>
+    <div class="tab-nav">
+      <button class="tab-btn active" onclick="showTab('melas',this)">Melas Hotel</button>
+      <button class="tab-btn" onclick="showTab('kavadias',this)">Kavadias Hotel</button>
+      <button class="tab-btn" onclick="showTab('akti',this)">AKTI Apartments</button>
+      <button class="tab-btn" onclick="showTab('xristina',this)">Xristina Apartments</button>
+      <button class="tab-btn" onclick="showTab('newmelas',this)">New Melas</button>
+    </div>
 
-<div class="info-box">
-  ℹ️ Vissa rum kan vara preliminärt bokade i upp till 48 timmar utan att det syns här.
-  Kontakta oss för att säkerställa aktuell tillgänglighet innan du bekräftar resan till dina kunder.
-</div>
+    <!-- MELAS -->
+    <div id="tab-melas" class="hotel-panel active">
+      <div>
+        <div class="hotel-gallery">
+          <img id="melas-main" src="https://388cb386b0d7908468c4-d7f86a40e40caa5d570fbd7e2287a9d8.ssl.cf3.rackcdn.com/images/accommodation/520x340/09042-melas.jpg" alt="Melas Hotel"/>
+        </div>
+        <div class="gallery-thumbs">
+          <img class="gallery-thumb active" src="https://388cb386b0d7908468c4-d7f86a40e40caa5d570fbd7e2287a9d8.ssl.cf3.rackcdn.com/images/accommodation/520x340/09042-melas.jpg" onclick="swapImg('melas-main',this)" alt=""/>
+          <img class="gallery-thumb" src="https://388cb386b0d7908468c4-d7f86a40e40caa5d570fbd7e2287a9d8.ssl.cf3.rackcdn.com/images/accommodation/520x340/09043-melas.jpg" onclick="swapImg('melas-main',this)" alt=""/>
+          <img class="gallery-thumb" src="https://388cb386b0d7908468c4-d7f86a40e40caa5d570fbd7e2287a9d8.ssl.cf3.rackcdn.com/images/accommodation/520x340/03449-melas.jpg" onclick="swapImg('melas-main',this)" alt=""/>
+          <img class="gallery-thumb" src="https://388cb386b0d7908468c4-d7f86a40e40caa5d570fbd7e2287a9d8.ssl.cf3.rackcdn.com/images/accommodation/520x340/03462-melas.jpg" onclick="swapImg('melas-main',this)" alt=""/>
+        </div>
+      </div>
+      <div class="hotel-info">
+        <h2>Melas Hotel</h2>
+        <span class="hotel-badge">Direkt vid stranden</span>
+        <p class="hotel-desc">Familjedrivet hotell beläget mitt mellan poolen och stranden med båtar. Ilias, Eleni och Ourania Melas välkomnar dig till nyrenoverade rum i välansade trädgårdar. Varje torsdag anordnas Greek Feast med cocktails och livemusik vid poolen.</p>
+        <div class="hotel-features">
+          <span class="feature-tag">🏖 Strand 30 m</span>
+          <span class="feature-tag">🏊 Pool</span>
+          <span class="feature-tag">🍽 Restaurang & bar</span>
+          <span class="feature-tag">❄️ AC i alla rum</span>
+          <span class="feature-tag">🎵 Torsdagsgrillning</span>
+        </div>
+        <div class="room-table-wrap">
+          <p class="room-table-title">Tillgängliga rum</p>
+          <table class="room-table">
+            <thead>
+              <tr><th>Rum</th><th>Utsikt</th><th>Säng</th><th>Sovpl.</th><th>Tillägg/vecka</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><span class="room-tag">M1</span></td><td>Sidoutsikt hav + Kav Bar</td><td>Twin</td><td>2</td><td>0 kr</td></tr>
+              <tr><td><span class="room-tag">M2A</span></td><td>Sidoutsikt hav + Kav Bar</td><td>Twin</td><td>2</td><td>0 kr</td></tr>
+              <tr><td><span class="room-tag">M2B</span></td><td>Full havsutsikt</td><td>Double</td><td>2</td><td>0 kr</td></tr>
+              <tr><td><span class="room-tag">M2A/B</span></td><td>Sid- + full havsutsikt</td><td>Twin + Double</td><td>4</td><td>0 kr</td></tr>
+              <tr><td><span class="room-tag">M3</span></td><td>Full havsutsikt</td><td>Double</td><td>2</td><td>1 758 kr</td></tr>
+              <tr><td><span class="room-tag">M4</span></td><td>Full havsutsikt</td><td>Twin</td><td>2</td><td>1 758 kr</td></tr>
+              <tr><td><span class="room-tag">M7A</span></td><td>Mot Ponti, västerut</td><td>Double</td><td>2</td><td>0 kr</td></tr>
+              <tr><td><span class="room-tag">M7B</span></td><td>Mot Ponti, västerut</td><td>Twin</td><td>2</td><td>0 kr</td></tr>
+              <tr><td><span class="room-tag">M8</span></td><td>Ponti + berg, västerut</td><td>Twin</td><td>2</td><td>0 kr</td></tr>
+            </tbody>
+          </table>
+          <p style="font-size:12px;color:var(--text-light);margin-top:10px;">M2A/B är ett länkat familjerum med gemensam entré och eget badrum.</p>
+        </div>
+      </div>
+    </div>
 
-<a href="mailto:pia@wildwind.se?subject=Wildwind%20bokningsf%C3%B6rfr%C3%A5gan" class="contact-btn">
-  ✉️ Skicka bokningsförfrågan
-</a>
+    <!-- KAVADIAS -->
+    <div id="tab-kavadias" class="hotel-panel">
+      <div>
+        <div class="hotel-gallery">
+          <img id="kav-main" src="https://388cb386b0d7908468c4-d7f86a40e40caa5d570fbd7e2287a9d8.ssl.cf3.rackcdn.com/images/accommodation/520x340/09212-kavadias.jpg" alt="Kavadias"/>
+        </div>
+        <div class="gallery-thumbs">
+          <img class="gallery-thumb active" src="https://388cb386b0d7908468c4-d7f86a40e40caa5d570fbd7e2287a9d8.ssl.cf3.rackcdn.com/images/accommodation/520x340/09212-kavadias.jpg" onclick="swapImg('kav-main',this)" alt=""/>
+          <img class="gallery-thumb" src="https://388cb386b0d7908468c4-d7f86a40e40caa5d570fbd7e2287a9d8.ssl.cf3.rackcdn.com/images/accommodation/520x340/09214-kavadias.jpg" onclick="swapImg('kav-main',this)" alt=""/>
+          <img class="gallery-thumb" src="https://388cb386b0d7908468c4-d7f86a40e40caa5d570fbd7e2287a9d8.ssl.cf3.rackcdn.com/images/accommodation/520x340/09226-kavadias.jpg" onclick="swapImg('kav-main',this)" alt=""/>
+          <img class="gallery-thumb" src="https://388cb386b0d7908468c4-d7f86a40e40caa5d570fbd7e2287a9d8.ssl.cf3.rackcdn.com/images/accommodation/520x340/09289-kavadias.jpg" onclick="swapImg('kav-main',this)" alt=""/>
+        </div>
+      </div>
+      <div class="hotel-info">
+        <h2>Kavadias Hotel</h2>
+        <span class="hotel-badge">Strandläge</span>
+        <p class="hotel-desc">Familjedrivet hotell bakom Kavadias Beach Bar – Nikos, Effy och Kryssa skapar en varm och välkomnande stämning. Effy's dagliga grekiska specialrätter är legendariska. Kavadias Beach Bar-terrassen med havsutsikt är hjärtat av semesterveckorna – varje tisdag bjuds det på BBQ och livemusik.</p>
+        <div class="hotel-features">
+          <span class="feature-tag">🏖 Strand 10 m</span>
+          <span class="feature-tag">🍹 Beach Bar</span>
+          <span class="feature-tag">🥩 Tirsdagsgrill</span>
+          <span class="feature-tag">❄️ AC i alla rum</span>
+          <span class="feature-tag">🌊 Havsutsikt från baren</span>
+        </div>
+        <div class="room-table-wrap">
+          <p class="room-table-title">Tillgängliga rum</p>
+          <table class="room-table">
+            <thead>
+              <tr><th>Rum</th><th>Utsikt</th><th>Säng</th><th>Sovpl.</th><th>Tillägg/vecka</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><span class="room-tag">K2</span></td><td>Ingen utsikt, baksida</td><td>Small Double</td><td>2</td><td>0 kr</td></tr>
+              <tr><td><span class="room-tag">K3</span></td><td>Ingen utsikt, baksida</td><td>Twin (litet)</td><td>2</td><td>0 kr</td></tr>
+              <tr><td><span class="room-tag">K4</span></td><td>Sidoutsikt mot trädgård</td><td>Double</td><td>2</td><td>0 kr</td></tr>
+              <tr><td><span class="room-tag">K14</span></td><td>Pool + berg västerut</td><td>Double</td><td>2</td><td>1 320 kr</td></tr>
+              <tr><td><span class="room-tag">K15</span></td><td>Pool + berg, delar balkong K14</td><td>Double</td><td>2</td><td>1 320 kr</td></tr>
+              <tr><td><span class="room-tag">K18</span></td><td>Havsutsikt över Kav Bar</td><td>Twin</td><td>2</td><td>1 320 kr</td></tr>
+              <tr><td><span class="room-tag">K19</span></td><td>Sidoutsikt mot hav + byn</td><td>Twin</td><td>2</td><td>0 kr</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- AKTI -->
+    <div id="tab-akti" class="hotel-panel">
+      <div>
+        <div class="hotel-gallery">
+          <img id="akti-main" src="https://388cb386b0d7908468c4-d7f86a40e40caa5d570fbd7e2287a9d8.ssl.cf3.rackcdn.com/images/accommodation/520x340/03716-akti.jpg" alt="AKTI"/>
+        </div>
+        <div class="gallery-thumbs">
+          <img class="gallery-thumb active" src="https://388cb386b0d7908468c4-d7f86a40e40caa5d570fbd7e2287a9d8.ssl.cf3.rackcdn.com/images/accommodation/520x340/03716-akti.jpg" onclick="swapImg('akti-main',this)" alt=""/>
+          <img class="gallery-thumb" src="https://388cb386b0d7908468c4-d7f86a40e40caa5d570fbd7e2287a9d8.ssl.cf3.rackcdn.com/images/accommodation/520x340/03718-akti.jpg" onclick="swapImg('akti-main',this)" alt=""/>
+          <img class="gallery-thumb" src="https://388cb386b0d7908468c4-d7f86a40e40caa5d570fbd7e2287a9d8.ssl.cf3.rackcdn.com/images/accommodation/520x340/03735-akti.jpg" onclick="swapImg('akti-main',this)" alt=""/>
+          <img class="gallery-thumb" src="https://388cb386b0d7908468c4-d7f86a40e40caa5d570fbd7e2287a9d8.ssl.cf3.rackcdn.com/images/accommodation/520x340/03736-akti.jpg" onclick="swapImg('akti-main',this)" alt=""/>
+        </div>
+      </div>
+      <div class="hotel-info">
+        <h2>AKTI Apartments</h2>
+        <span class="hotel-badge">Ca 100 m från centret</span>
+        <p class="hotel-desc">AKTI erbjuder en lugnare tillvaro med egna köks- och matlagingsmöjligheter – perfekt för familjer eller om du vill ha lite extra utrymme. Studios på övervåningen och rymliga 2-sovrumslägenheter med fullt kök på bottenvåningen. Olivlunden och trädgårdsatmosfären ger en äkta grekisk känsla.</p>
+        <div class="hotel-features">
+          <span class="feature-tag">🌿 Trädgårdsläge</span>
+          <span class="feature-tag">🍳 Fullt kök (A7/A8)</span>
+          <span class="feature-tag">👨‍👩‍👧 Familjevänligt</span>
+          <span class="feature-tag">❄️ AC</span>
+          <span class="feature-tag">🏖 Strand 5 min</span>
+        </div>
+        <div class="room-table-wrap">
+          <p class="room-table-title">Tillgängliga rum</p>
+          <table class="room-table">
+            <thead>
+              <tr><th>Rum</th><th>Typ</th><th>Säng</th><th>Sovpl.</th><th>Tillägg/vecka</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><span class="room-tag">A4</span></td><td>Studio, pentry, övervåning</td><td>Twin</td><td>2</td><td>1 758 kr</td></tr>
+              <tr><td><span class="room-tag">A5</span></td><td>Studio, pentry, övervåning</td><td>Twin</td><td>2</td><td>1 758 kr</td></tr>
+              <tr><td><span class="room-tag">A9</span></td><td>1-sovrum lgh, pentry</td><td>Twin + extra i hall</td><td>2–3</td><td>1 758 kr</td></tr>
+              <tr><td><span class="room-tag">A7</span></td><td>2-sovrum lgh, fullt kök</td><td>Double + Twin + extra</td><td>4–5</td><td>3 516 kr</td></tr>
+              <tr><td><span class="room-tag">A8</span></td><td>2-sovrum lgh, fullt kök</td><td>Double + Twin + extra</td><td>4–5</td><td>3 516 kr</td></tr>
+            </tbody>
+          </table>
+          <p style="font-size:12px;color:var(--text-light);margin-top:10px;">A7 och A8 kräver minst 4 personer (2-sovrumslägenhet).</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- XRISTINA -->
+    <div id="tab-xristina" class="hotel-panel">
+      <div>
+        <div class="hotel-gallery">
+          <img id="xr-main" src="https://388cb386b0d7908468c4-d7f86a40e40caa5d570fbd7e2287a9d8.ssl.cf3.rackcdn.com/images/accommodation/520x340/09257-xristina.jpg" alt="Xristina"/>
+        </div>
+        <div class="gallery-thumbs">
+          <img class="gallery-thumb active" src="https://388cb386b0d7908468c4-d7f86a40e40caa5d570fbd7e2287a9d8.ssl.cf3.rackcdn.com/images/accommodation/520x340/09257-xristina.jpg" onclick="swapImg('xr-main',this)" alt=""/>
+          <img class="gallery-thumb" src="https://388cb386b0d7908468c4-d7f86a40e40caa5d570fbd7e2287a9d8.ssl.cf3.rackcdn.com/images/accommodation/520x340/09295-xristina.jpg" onclick="swapImg('xr-main',this)" alt=""/>
+          <img class="gallery-thumb" src="https://388cb386b0d7908468c4-d7f86a40e40caa5d570fbd7e2287a9d8.ssl.cf3.rackcdn.com/images/accommodation/520x340/09305-xristina.jpg" onclick="swapImg('xr-main',this)" alt=""/>
+        </div>
+      </div>
+      <div class="hotel-info">
+        <h2>Xristina Apartments</h2>
+        <span class="hotel-badge">Säsong: 13 juli – 15 sept</span>
+        <p class="hotel-desc">Xristinas lägenheter ligger ett par minuters promenad från centret – nära affären och stranden. Lugnt läge med trädgårdsvy åt norr. Perfekt för dig som vill ha lite privatliv och självhushåll med enkel tillgång till allt Vassiliki erbjuder.</p>
+        <div class="hotel-features">
+          <span class="feature-tag">🌿 Trädgårdsläge</span>
+          <span class="feature-tag">🏪 Nära affär</span>
+          <span class="feature-tag">🏖 Strand 5 min</span>
+          <span class="feature-tag">🍳 Kitchenette</span>
+        </div>
+        <div class="room-table-wrap">
+          <p class="room-table-title">Tillgängliga rum</p>
+          <table class="room-table">
+            <thead>
+              <tr><th>Rum</th><th>Typ</th><th>Säng</th><th>Sovpl.</th><th>Tillägg/vecka</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><span class="room-tag">X1</span></td><td>Studio, pentry, havsutsikt på avstånd</td><td>Twin</td><td>2–3</td><td>1 320 kr</td></tr>
+              <tr><td><span class="room-tag">X6</span></td><td>1-sovrum lgh, kitchenette, trädgård norr</td><td>Double + 2 enklar i lounge</td><td>4</td><td>3 516 kr</td></tr>
+            </tbody>
+          </table>
+          <div class="note-season">⚠️ Xristina är tillgänglig 13 juli – 15 september. X6 bokas för minst 4 personer.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NEW MELAS -->
+    <div id="tab-newmelas" class="hotel-panel">
+      <div>
+        <div class="hotel-gallery">
+          <img id="nm-main" src="https://388cb386b0d7908468c4-d7f86a40e40caa5d570fbd7e2287a9d8.ssl.cf3.rackcdn.com/images/accommodation/520x340/09042-melas.jpg" alt="New Melas"/>
+        </div>
+      </div>
+      <div class="hotel-info">
+        <h2>New Melas</h2>
+        <span class="hotel-badge">Övervåning, stora huset</span>
+        <p class="hotel-desc">New Melas är den nyare delen av Melas-anläggningen. NM208 ligger på övervåningen i stora huset med utsikt mot bergen bakåt – ett lugnt och väl inrett rum för dig som söker lite extra komfort och höjdläge.</p>
+        <div class="hotel-features">
+          <span class="feature-tag">🏔 Bergutsikt</span>
+          <span class="feature-tag">❄️ AC</span>
+          <span class="feature-tag">🏊 Tillgång till Melas pool</span>
+          <span class="feature-tag">🍽 Restaurang ingår</span>
+        </div>
+        <div class="room-table-wrap">
+          <p class="room-table-title">Tillgängliga rum</p>
+          <table class="room-table">
+            <thead>
+              <tr><th>Rum</th><th>Utsikt</th><th>Säng</th><th>Sovpl.</th><th>Tillägg/vecka</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><span class="room-tag">NM208</span></td><td>Bergutsikt bakåt</td><td>Double</td><td>2</td><td>2 638 kr</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- PRISER -->
+<section class="prices-section" id="priser">
+  <div class="section-inner">
+    <p class="section-label">Rumstillägg</p>
+    <h2 class="section-title">Tillägg per rum &amp; vecka</h2>
+    <p class="section-sub">Tillägget adderas till ditt grundpris och gäller per rum/vecka, oavsett program. Ensamresenärer betalar rumstillägg + enkelrumstillägg.</p>
+    <div class="prices-grid">
+      <div class="price-card">
+        <div class="price-card-name">Standardrum</div>
+        <div class="price-card-type">Bottenvåning, utan havsutsikt</div>
+        <div class="price-card-from">Tillägg</div>
+        <div class="price-card-amount">0 kr</div>
+        <div class="price-card-note">M1, M2A/B, M7A, M7B, M8 · K2, K3, K4, K19</div>
+      </div>
+      <div class="price-card">
+        <div class="price-card-name">Övervåning / Utsikt</div>
+        <div class="price-card-type">Övervåning eller delvis havsutsikt</div>
+        <div class="price-card-from">Tillägg</div>
+        <div class="price-card-amount">1 320 kr</div>
+        <div class="price-card-note">K14, K15, K18 · X1</div>
+      </div>
+      <div class="price-card">
+        <div class="price-card-name">Havsutsikt</div>
+        <div class="price-card-type">Full havsutsikt</div>
+        <div class="price-card-from">Tillägg</div>
+        <div class="price-card-amount">1 758 kr</div>
+        <div class="price-card-note">M3, M4 · A4, A5, A9</div>
+      </div>
+      <div class="price-card">
+        <div class="price-card-name">New Melas Plus</div>
+        <div class="price-card-type">Övervåning, nyare del</div>
+        <div class="price-card-from">Tillägg</div>
+        <div class="price-card-amount">2 638 kr</div>
+        <div class="price-card-note">NM208</div>
+      </div>
+      <div class="price-card">
+        <div class="price-card-name">2-sovrumslägenhet</div>
+        <div class="price-card-type">Fullt kök, min 4 pers</div>
+        <div class="price-card-from">Tillägg (totalt)</div>
+        <div class="price-card-amount">3 516 kr</div>
+        <div class="price-card-note">A7, A8 · X6</div>
+      </div>
+      <div class="price-card" style="border-top-color:var(--gold);background:var(--azure);">
+        <div class="price-card-name" style="color:var(--gold);">Boka nu</div>
+        <div class="price-card-type" style="color:rgba(255,255,255,0.6);">Vi hjälper dig välja rum</div>
+        <div style="margin-top:20px;">
+          <a href="mailto:info@wildwind.se" class="btn btn-primary" style="width:100%;justify-content:center;">✉ Skicka förfrågan</a>
+        </div>
+        <div class="price-card-note" style="color:rgba(255,255,255,0.5);margin-top:12px;">Ring: 0707 334 450</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- KARTA -->
+<section class="map-section" id="karta">
+  <div class="section-inner">
+    <div class="map-grid">
+      <div>
+        <p class="section-label">Var ligger allt?</p>
+        <h2 class="section-title">Vassiliki, Lefkas</h2>
+        <p class="section-sub">Alla boenden ligger inom promenadavstånd från varandra och från stranden. Wildwinds anläggning är centrum för allt.</p>
+        <div style="margin-top:24px;display:flex;flex-direction:column;gap:12px;">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="width:32px;height:32px;background:var(--azure);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;flex-shrink:0;">M</span>
+            <div><strong>Melas Hotel</strong> – Mellan pool och strand med båtar</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="width:32px;height:32px;background:var(--terra);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;flex-shrink:0;">K</span>
+            <div><strong>Kavadias Hotel</strong> – Bakom Kavadias Beach Bar</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="width:32px;height:32px;background:var(--sky);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;flex-shrink:0;">A</span>
+            <div><strong>AKTI Apartments</strong> – Ca 100 m från centret</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="width:32px;height:32px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;flex-shrink:0;">X</span>
+            <div><strong>Xristina Apartments</strong> – Nära affären, 2 min promenad</div>
+          </div>
+        </div>
+      </div>
+      <div class="map-frame">
+        <iframe
+          src="https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d1500!2d20.5986!3d38.6270!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1ssv!2sse!4v1700000000000!5m2!1ssv!2sse&q=Vassiliki+Beach+Lefkada+Greece"
+          allowfullscreen="" loading="lazy"
+          referrerpolicy="no-referrer-when-downgrade">
+        </iframe>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TILLGÄNGLIGHET -->
+<section class="avail-section" id="tillganglighet">
+  <div class="section-inner">
+    <p class="section-label">Aktuell status</p>
+    <h2 class="section-title">Rumstillgänglighet 2026</h2>
+    <p class="section-sub">Uppdateras automatiskt varje morgon. Grönt = ledig vecka, orange = preliminärt bokad, rött = bokad.</p>
+    <div class="avail-frame" style="margin-top:32px;">
+      <iframe src="availability.html" title="Tillgänglighetskalender"></iframe>
+    </div>
+    <p style="font-size:12px;color:rgba(255,255,255,0.45);margin-top:14px;text-align:center;">
+      Rum kan vara preliminärt bokade i upp till 2 dagar utan att synas här. Kontakta oss för aktuell status.
+    </p>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <p style="font-family:'Cormorant Garamond',serif;font-size:22px;color:#fff;margin-bottom:8px;">Wildwind · Vassiliki · Lefkas · Grekland</p>
+  <p>Bokningar via <strong>Seafari AB</strong> · <a href="mailto:info@wildwind.se">info@wildwind.se</a> · 0707 334 450</p>
+  <p style="margin-top:16px;">Wildwind är ett varumärke som tillhör Wildwind Ltd. (Eire) · <a href="https://wildwind.se/terms_and_conditions" target="_blank">Villkor</a></p>
+</footer>
 
 <script>
-{data_js}
+function showTab(name, btn) {
+  document.querySelectorAll('.hotel-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+}
 
-document.getElementById('upd').textContent = UPDATED;
+function swapImg(mainId, thumb) {
+  document.getElementById(mainId).src = thumb.src;
+  thumb.closest('.hotel-info, .hotel-panel').querySelectorAll('.gallery-thumb').forEach(t => t.classList.remove('active'));
+  // find thumbs in same panel
+  const panel = thumb.closest('.hotel-panel');
+  if (panel) panel.querySelectorAll('.gallery-thumb').forEach(t => t.classList.remove('active'));
+  thumb.classList.add('active');
+}
 
-// Populate week filter
-const wf = document.getElementById('weekFilter');
-WEEKS.forEach((w,i) => {{
-  const opt = document.createElement('option');
-  opt.value = i; opt.textContent = w.label + (w.price ? ' – ' + w.price.toLocaleString('sv-SE') + ' kr' : '');
-  wf.appendChild(opt);
-}});
+// Animate on scroll
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.style.opacity = '1';
+      e.target.style.transform = 'translateY(0)';
+    }
+  });
+}, { threshold: 0.1 });
 
-function renderTable() {{
-  const roomQ  = document.getElementById('roomFilter').value.toLowerCase();
-  const statQ  = document.getElementById('statusFilter').value;
-  const weekQ  = document.getElementById('weekFilter').value;
-
-  const filtWeeks = weekQ === 'all'
-    ? WEEKS.map((_,i) => i)
-    : [parseInt(weekQ)];
-
-  const table = document.getElementById('avail-table');
-  let html = '<thead><tr><th>Rum</th>';
-  filtWeeks.forEach(i => {{
-    const w = WEEKS[i];
-    html += `<th><span class="week-date">${{w.label}}</span>`;
-    html += w.price ? `<span class="week-price">${{w.price.toLocaleString('sv-SE')}} kr</span>` : '<span class="week-price">&nbsp;</span>';
-    html += '</th>';
-  }});
-  html += '</tr></thead><tbody>';
-
-  ROOMS.forEach(room => {{
-    if (roomQ && !room.name.toLowerCase().includes(roomQ)) return;
-    if (statQ === 'available') {{
-      const anyFree = filtWeeks.some(i => room.weeks[i] === 'available');
-      if (!anyFree) return;
-    }}
-    html += `<tr><td>${{room.name}}</td>`;
-    filtWeeks.forEach(i => {{
-      const st = room.weeks[i] || 'available';
-      const label = st === 'available' ? '✓' : st === 'on_hold' ? '~' : '✕';
-      html += `<td><div class="cell cell-${{st}}" title="${{WEEKS[i].label}} – ${{st === 'available' ? 'Ledig' : st === 'on_hold' ? 'Prel. bokad' : 'Bokad'}}">${{label}}</div></td>`;
-    }});
-    html += '</tr>';
-  }});
-  html += '</tbody>';
-  table.innerHTML = html;
-}}
-
-renderTable();
+document.querySelectorAll('.price-card, .hotel-panel').forEach(el => {
+  el.style.opacity = '0';
+  el.style.transform = 'translateY(20px)';
+  el.style.transition = 'opacity .5s ease, transform .5s ease';
+  observer.observe(el);
+});
 </script>
 </body>
-</html>'''
-    return html
-
-# ─── MAIN ─────────────────────────────────────────────────────────────
-def main():
-    print("🚀 Wildwind Availability Updater")
-    print("=" * 40)
-    try:
-        excel_file = download_excel()
-        data = parse_availability(excel_file)
-        html = generate_html(data)
-        Path(OUTPUT_FILE).write_text(html, encoding='utf-8')
-        print(f"✅ Genererade {OUTPUT_FILE}")
-        Path("temp_availability.xlsx").unlink(missing_ok=True)
-        print("🎉 Klar!")
-    except Exception as e:
-        print(f"❌ Fel: {e}")
-        raise
-
-if __name__ == "__main__":
-    main()
+</html>

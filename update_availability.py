@@ -1,550 +1,333 @@
 #!/usr/bin/env python3
 """
 Wildwind Room Availability Updater
-Downloads Excel from Dropbox and generates an interactive HTML dashboard.
+Downloads Excel from Dropbox and generates availability.html (NOT index.html)
 """
 
 import pandas as pd
 import json
 import requests
-from datetime import datetime
+from datetime import datetime, date
 from pathlib import Path
 
-# Configuration
+# ─── CONFIG ───────────────────────────────────────────────────────────
 DROPBOX_URL = "https://www.dropbox.com/scl/fi/i0ji499omsoc0yl4fuzo7/STEPH-VERSION-ALL-ROOMS-2026.xlsx?rlkey=lq3j8vz7hdlnoqvairj0yp2ih&dl=1"
-OUTPUT_FILE = "index.html"
+OUTPUT_FILE = "availability.html"   # ← OBS: inte index.html
 
-# Rows Pia can book
-ALLOWED_ROWS = [44, 48, 52, 56, 60, 140, 144, 148, 168, 184, 188, 192, 204, 208, 220, 224, 244, 248, 256, 264, 272, 284]
+# Excel-rader som Seafari AB kan boka (0-indexerade)
+ALLOWED_ROWS = [44, 48, 52, 56, 60, 140, 144, 148, 168, 184, 188, 192,
+                204, 208, 220, 224, 244, 248, 256, 264, 272, 284]
 
+# Sailing-priser 2026 (SEK/person/vecka, 2 delar rum)
+SAILING_PRICES = {
+    "Apr 25": 8990,  "May 2": 9430,   "May 9": 10300,  "May 16": 10840,
+    "May 23": 10840, "May 30": 11940, "Jun 06": 12700, "Jun 13": 13030,
+    "Jun 20": 13900, "Jun 27": 14120, "Jul 4": 14440,  "Jul 11": 14990,
+    "Jul 18": 15210, "Jul 25": 15210, "Aug 01": 15210, "Aug 8": 15210,
+    "Aug 15": 14120, "Aug 22": 12810, "Aug 29": 11940, "Sep 5": 11720,
+    "Sep 12": 11170, "Sep 19": 10300, "Sep 26": 9540,  "Oct 3": 8990,
+}
+
+# Mappning från Excel-datum (lördag) → prisliste-nyckel
+def date_to_price_key(dt):
+    """Matcha ett datum mot SAILING_PRICES-nycklar."""
+    if not isinstance(dt, (date, datetime)):
+        return None
+    month_abbr = dt.strftime("%b")   # "Apr", "May" etc
+    day = dt.day
+    key = f"{month_abbr} {day}"
+    if key in SAILING_PRICES:
+        return key
+    # Prova nollpaddat (Jun 06 etc)
+    key2 = f"{month_abbr} {day:02d}"
+    if key2 in SAILING_PRICES:
+        return key2
+    return None
+
+# ─── DOWNLOAD ─────────────────────────────────────────────────────────
 def download_excel():
-    """Download Excel file from Dropbox."""
-    print("📥 Downloading Excel from Dropbox...")
-    response = requests.get(DROPBOX_URL)
+    print("📥 Laddar ner Excel från Dropbox...")
+    response = requests.get(DROPBOX_URL, timeout=30)
     response.raise_for_status()
-    
-    temp_file = Path("temp_availability.xlsx")
-    temp_file.write_bytes(response.content)
-    print(f"✅ Downloaded {len(response.content)} bytes")
-    return temp_file
+    tmp = Path("temp_availability.xlsx")
+    tmp.write_bytes(response.content)
+    print(f"✅ {len(response.content):,} bytes")
+    return tmp
 
+# ─── PARSE ────────────────────────────────────────────────────────────
 def parse_availability(excel_path):
-    """Parse Excel and extract room availability data."""
-    print("📊 Parsing availability data...")
-    df = pd.read_excel(excel_path, header=None)
-    
-    # Find all Saturdays (week starts)
-    saturdays = []
-    for col_idx in range(3, len(df.columns), 2):
-        date_val = df.iloc[0, col_idx]
-        day_name = df.iloc[1, col_idx]
-        if pd.notna(day_name) and 'SATURDAY' in str(day_name).upper():
-            if pd.notna(date_val):
-                dt = pd.to_datetime(date_val)
-                saturdays.append({
-                    'col': col_idx,
-                    'date': dt.strftime('%Y-%m-%d'),
-                    'display': dt.strftime('%d %b'),
-                    'weekNum': dt.isocalendar()[1]
-                })
-    
-    # Extract room data
-    rooms_data = []
-    for row in ALLOWED_ROWS:
-        building = str(df.iloc[row-1, 0]).strip() if pd.notna(df.iloc[row-1, 0]) else ""
-        room_num = str(df.iloc[row-1, 1]).strip() if pd.notna(df.iloc[row-1, 1]) else ""
-        
-        # Clean up building name (XRISTINA a -> XRISTINA)
-        building = building.replace("XRISTINA a", "XRISTINA")
-        
-        # Clean up room name
-        room_name = f"{building} {room_num}".strip()
-        room_name = room_name.replace("     ", " ").replace("    ", " ").replace("   ", " ").replace("  ", " ")
-        room_name = room_name.replace("EU OR UK  ROOM", "EU/UK").replace("EU ROOM", "EU")
-        room_name = room_name.replace("XRISTINA a", "XRISTINA")
-        
-        availability = {}
-        for sat in saturdays:
-            sat_col = sat['col']
-            
-            # Check ALL 7 days in the week (Saturday + 6 more days)
-            week_booked = False
-            week_on_hold = False
-            booked_by = ""
-            
-            for day_offset in range(7):
-                col = sat_col + (day_offset * 2)  # Every other column
-                if col < len(df.columns):
-                    cell_val = df.iloc[row-1, col]
-                    # Check "on hold" 2 rows below
-                    hold_val = df.iloc[row+1, col] if row+1 < len(df) else None
-                    
-                    if pd.notna(cell_val) and str(cell_val).strip():
-                        week_booked = True
-                        if not booked_by:
-                            booked_by = str(cell_val).strip()[:25]
-                    
-                    if pd.notna(hold_val) and 'hold' in str(hold_val).lower():
-                        week_on_hold = True
-            
-            # Determine status: on_hold, booked, or available
-            if week_on_hold:
-                status = 'on_hold'
-            elif week_booked:
-                status = 'booked'
-            else:
-                status = 'available'
-            
-            availability[sat['date']] = {
-                'status': status,
-                'bookedBy': booked_by
-            }
-        
-        rooms_data.append({
-            'row': row,
-            'name': room_name,
-            'building': building,
-            'availability': availability
-        })
-    
-    print(f"✅ Found {len(saturdays)} weeks and {len(rooms_data)} rooms")
-    
-    return {
-        'generated': datetime.now().strftime('%Y-%m-%d %H:%M'),
-        'saturdays': saturdays,
-        'rooms': rooms_data
-    }
+    df = pd.read_excel(excel_path, header=None, engine="openpyxl")
 
+    # Hitta rubrikrad (innehåller datum-celler i rad 0 eller 1)
+    # Kolumner: rad = rum, kolumn = vecka (lördag)
+    # Hämta rad 0 som datum-headers
+    header_row = df.iloc[0]
+
+    weeks = []
+    for col_idx, val in enumerate(header_row):
+        if isinstance(val, (date, datetime)):
+            dt = val if isinstance(val, date) else val.date()
+            weeks.append({"col": col_idx, "date": dt})
+
+    rooms = []
+    for row_idx in ALLOWED_ROWS:
+        if row_idx >= len(df):
+            continue
+        row = df.iloc[row_idx]
+
+        # Rum-namn finns normalt i kolumn 0 eller 1
+        room_name = str(row.iloc[0]).strip() if pd.notna(row.iloc[0]) else ""
+        if not room_name or room_name.lower() in ("nan", ""):
+            room_name = str(row.iloc[1]).strip() if pd.notna(row.iloc[1]) else f"Rad {row_idx}"
+
+        week_status = []
+        for wk in weeks:
+            cell_val = row.iloc[wk["col"]] if wk["col"] < len(row) else None
+            if pd.isna(cell_val) or cell_val == "" or cell_val is None:
+                status = "available"
+            else:
+                val_str = str(cell_val).strip().lower()
+                if val_str in ("", "nan"):
+                    status = "available"
+                elif "hold" in val_str or "option" in val_str or "prel" in val_str:
+                    status = "on_hold"
+                else:
+                    status = "booked"
+            week_status.append(status)
+
+        rooms.append({"name": room_name, "weeks": week_status})
+
+    return {"weeks": weeks, "rooms": rooms}
+
+# ─── GENERATE HTML ────────────────────────────────────────────────────
 def generate_html(data):
-    """Generate the interactive HTML dashboard."""
-    print("🎨 Generating HTML dashboard...")
-    
-    data_json = json.dumps(data)
-    
+    weeks  = data["weeks"]
+    rooms  = data["rooms"]
+    now    = datetime.now().strftime("%d %b %Y, %H:%M")
+
+    # Bygg vecko-JSON med pris
+    weeks_json = []
+    for wk in weeks:
+        dt = wk["date"]
+        label = dt.strftime("%-d %b") if hasattr(dt, 'strftime') else str(dt)
+        price_key = date_to_price_key(dt)
+        price = SAILING_PRICES.get(price_key) if price_key else None
+        weeks_json.append({
+            "label": label,
+            "iso": dt.isoformat() if hasattr(dt, 'isoformat') else str(dt),
+            "price": price
+        })
+
+    rooms_json = rooms  # already serializable
+
+    data_js = f"const WEEKS = {json.dumps(weeks_json, ensure_ascii=False)};\n"
+    data_js += f"const ROOMS = {json.dumps(rooms_json, ensure_ascii=False)};\n"
+    data_js += f"const UPDATED = '{now}';\n"
+
     html = f'''<!DOCTYPE html>
 <html lang="sv">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Wildwind">
-    <title>Wildwind Rumstillgänglighet 2026</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛵</text></svg>">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
-    <style>
-        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-        body {{ 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #0c1929 0%, #1a3a5c 100%);
-            min-height: 100vh;
-            color: #e0e6ed;
-        }}
-        .container {{ max-width: 1400px; margin: 0 auto; padding: 20px; }}
-        header {{ 
-            text-align: center; 
-            padding: 30px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            margin-bottom: 20px;
-        }}
-        h1 {{ 
-            font-size: 2.5rem; 
-            font-weight: 300;
-            letter-spacing: 2px;
-            margin-bottom: 10px;
-            background: linear-gradient(90deg, #4facfe, #00f2fe);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }}
-        .subtitle {{ color: #7a8fa6; font-size: 0.9rem; }}
-        .info-box {{
-            background: rgba(79,172,254,0.1);
-            border: 1px solid rgba(79,172,254,0.3);
-            border-radius: 10px;
-            padding: 15px 20px;
-            margin-bottom: 25px;
-            text-align: center;
-            font-size: 0.9rem;
-            color: #b8c5d4;
-        }}
-        .info-box strong {{
-            color: #4facfe;
-        }}
-        .legend {{
-            display: flex;
-            justify-content: center;
-            gap: 25px;
-            margin-bottom: 25px;
-            flex-wrap: wrap;
-        }}
-        .legend-item {{
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.85rem;
-            color: #b8c5d4;
-        }}
-        .legend-dot {{
-            width: 16px;
-            height: 16px;
-            border-radius: 4px;
-        }}
-        .legend-dot.available {{ background: linear-gradient(135deg, #00d26a, #00a854); }}
-        .legend-dot.on-hold {{ background: linear-gradient(135deg, #ff9500, #ff7b00); }}
-        .legend-dot.booked {{ background: rgba(255,255,255,0.1); }}
-        .controls {{ 
-            display: flex; 
-            gap: 15px; 
-            margin-bottom: 25px; 
-            flex-wrap: wrap;
-            justify-content: center;
-        }}
-        .filter-btn {{
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.15);
-            color: #b8c5d4;
-            padding: 10px 20px;
-            border-radius: 25px;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-size: 0.9rem;
-        }}
-        .filter-btn:hover, .filter-btn.active {{
-            background: linear-gradient(135deg, #4facfe, #00f2fe);
-            border-color: transparent;
-            color: #0c1929;
-        }}
-        .view-toggle {{
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            justify-content: center;
-        }}
-        .grid-view {{ display: grid; gap: 15px; }}
-        .room-card {{
-            background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 12px;
-            padding: 20px;
-            transition: all 0.3s;
-        }}
-        .room-card:hover {{
-            background: rgba(255,255,255,0.06);
-            border-color: rgba(79,172,254,0.3);
-            transform: translateY(-2px);
-        }}
-        .room-header {{
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid rgba(255,255,255,0.08);
-        }}
-        .room-name {{ 
-            font-size: 1.1rem; 
-            font-weight: 600;
-            color: #fff;
-        }}
-        .building-tag {{
-            background: rgba(79,172,254,0.15);
-            color: #4facfe;
-            padding: 4px 12px;
-            border-radius: 15px;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }}
-        .weeks-grid {{
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
-            gap: 6px;
-        }}
-        .week-cell {{
-            padding: 8px 4px;
-            border-radius: 6px;
-            text-align: center;
-            font-size: 0.75rem;
-            transition: all 0.2s;
-            cursor: default;
-        }}
-        .week-cell.available {{
-            background: linear-gradient(135deg, #00d26a, #00a854);
-            color: #fff;
-            font-weight: 500;
-        }}
-        .week-cell.on_hold {{
-            background: linear-gradient(135deg, #ff9500, #ff7b00);
-            color: #fff;
-            font-weight: 500;
-        }}
-        .week-cell.booked {{
-            background: rgba(255,255,255,0.05);
-            color: #5a6a7a;
-        }}
-        .week-cell:hover {{
-            transform: scale(1.05);
-        }}
-        .week-label {{ font-weight: 600; }}
-        .week-num {{ font-size: 0.65rem; opacity: 0.7; }}
-        
-        .week-section {{ margin-bottom: 30px; }}
-        .week-header {{
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px 20px;
-            background: rgba(79,172,254,0.1);
-            border-radius: 10px;
-            margin-bottom: 10px;
-        }}
-        .week-date {{ font-size: 1.1rem; font-weight: 600; }}
-        .week-count {{ 
-            background: #00d26a;
-            color: #fff;
-            padding: 4px 12px;
-            border-radius: 15px;
-            font-size: 0.85rem;
-        }}
-        .rooms-list {{
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            padding-left: 20px;
-        }}
-        .room-tag {{
-            background: rgba(255,255,255,0.08);
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-size: 0.85rem;
-        }}
-        .room-tag.on-hold {{
-            background: rgba(255,149,0,0.2);
-            border: 1px solid rgba(255,149,0,0.4);
-        }}
-        .contact-btn {{
-            display: inline-block;
-            margin-top: 30px;
-            padding: 15px 40px;
-            background: linear-gradient(135deg, #4facfe, #00f2fe);
-            color: #0c1929;
-            text-decoration: none;
-            border-radius: 30px;
-            font-weight: 600;
-            transition: all 0.3s;
-        }}
-        .contact-btn:hover {{
-            transform: translateY(-2px);
-            box-shadow: 0 10px 30px rgba(79,172,254,0.3);
-        }}
-        footer {{
-            text-align: center;
-            padding: 40px 0 20px;
-            color: #5a6a7a;
-            font-size: 0.85rem;
-        }}
-        
-        @media (max-width: 768px) {{
-            h1 {{ font-size: 1.8rem; }}
-            .controls {{ flex-direction: column; align-items: stretch; }}
-            .filter-btn {{ text-align: center; }}
-        }}
-    </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Wildwind – Rumstillgänglighet 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@300;400;600&family=Cormorant+Garamond:wght@400;600&display=swap" rel="stylesheet"/>
+<style>
+:root {{
+  --azure: #0B3D72; --sky: #5BA4CF; --sand: #F5EDD8;
+  --green: #2E8B57; --orange: #E08C2A; --red: #C0392B;
+  --green-bg: #E8F5EE; --orange-bg: #FEF3E2; --red-bg: #FDECEC;
+  --white: #FDFAF5; --text: #2A2A2A; --text-mid: #666;
+}}
+* {{ box-sizing: border-box; margin: 0; padding: 0; }}
+body {{ font-family: 'Nunito Sans', sans-serif; background: var(--white); color: var(--text); font-size: 14px; }}
+
+header {{
+  background: var(--azure); color: #fff;
+  padding: 20px 32px; display: flex; align-items: center; justify-content: space-between;
+}}
+header h1 {{ font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 400; }}
+header .updated {{ font-size: 12px; opacity: 0.6; }}
+
+.legend {{
+  display: flex; gap: 20px; padding: 14px 32px;
+  background: #fff; border-bottom: 1px solid #e8e0d0;
+  flex-wrap: wrap; align-items: center;
+}}
+.legend-item {{ display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; }}
+.dot {{ width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }}
+.dot-green  {{ background: var(--green); }}
+.dot-orange {{ background: var(--orange); }}
+.dot-red    {{ background: var(--red); }}
+.note {{ font-size: 11px; color: var(--text-mid); margin-left: auto; }}
+
+.filter-bar {{
+  padding: 12px 32px; background: var(--sand);
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+}}
+.filter-bar label {{ font-size: 12px; font-weight: 600; color: var(--azure); }}
+.filter-bar select, .filter-bar input {{
+  padding: 6px 10px; border: 1px solid #ccc; border-radius: 20px;
+  font-family: inherit; font-size: 12px; background: #fff;
+}}
+
+.table-wrap {{ overflow-x: auto; padding: 24px 32px; }}
+table {{ border-collapse: collapse; min-width: 100%; }}
+
+th {{
+  background: var(--azure); color: #fff;
+  padding: 0; text-align: center; font-size: 11px;
+  font-weight: 600; white-space: nowrap; position: sticky; top: 0; z-index: 2;
+}}
+th .week-date {{ padding: 8px 10px 2px; display: block; }}
+th .week-price {{
+  display: block; padding: 2px 10px 8px;
+  font-size: 10px; font-weight: 400; opacity: 0.75;
+  color: #FFE099;
+}}
+th:first-child {{ text-align: left; min-width: 130px; padding: 8px 14px; position: sticky; left: 0; z-index: 3; }}
+
+td {{ padding: 0; border: 1px solid #e8e0d0; }}
+td:first-child {{
+  padding: 8px 14px; font-weight: 600; font-size: 12px;
+  background: #fff; position: sticky; left: 0; z-index: 1;
+  white-space: nowrap; border-right: 2px solid #d0c8b8;
+}}
+tr:nth-child(even) td:first-child {{ background: #faf6ee; }}
+
+.cell {{
+  width: 52px; height: 36px; display: flex;
+  align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; cursor: default;
+  transition: opacity .15s;
+}}
+.cell:hover {{ opacity: 0.8; }}
+.cell-available {{ background: var(--green-bg); color: var(--green); }}
+.cell-on_hold   {{ background: var(--orange-bg); color: var(--orange); }}
+.cell-booked    {{ background: var(--red-bg); color: var(--red); }}
+
+.info-box {{
+  margin: 0 32px 32px; padding: 14px 20px;
+  background: #EDF3FA; border-left: 4px solid var(--sky);
+  border-radius: 6px; font-size: 12px; color: var(--text-mid); line-height: 1.6;
+}}
+.contact-btn {{
+  display: inline-flex; align-items: center; gap: 8px;
+  margin: 0 32px 32px; padding: 14px 28px;
+  background: var(--azure); color: #fff; border-radius: 40px;
+  text-decoration: none; font-size: 13px; font-weight: 600;
+  transition: background .2s;
+}}
+.contact-btn:hover {{ background: #1A5C9A; }}
+</style>
 </head>
 <body>
-    <div id="root"></div>
-    
-    <script type="text/babel">
-        const data = {data_json};
-        
-        function App() {{
-            const [view, setView] = React.useState('rooms');
-            const [buildingFilter, setBuildingFilter] = React.useState('all');
-            
-            const buildings = [...new Set(data.rooms.map(r => r.building))];
-            
-            const filteredRooms = data.rooms.filter(room => {{
-                if (buildingFilter !== 'all' && room.building !== buildingFilter) return false;
-                return true;
-            }});
-            
-            const roomsPerWeek = data.saturdays.map(sat => ({{
-                ...sat,
-                availableRooms: data.rooms.filter(room => room.availability[sat.date]?.status === 'available'),
-                onHoldRooms: data.rooms.filter(room => room.availability[sat.date]?.status === 'on_hold')
-            }}));
-            
-            return (
-                <div className="container">
-                    <header>
-                        <h1>⛵ WILDWIND 2026</h1>
-                        <p className="subtitle">Rumstillgänglighet (lördag–lördag) • Uppdaterad {{data.generated}}</p>
-                    </header>
-                    
-                    <div className="info-box">
-                        <strong>Observera:</strong> Vissa rum kan vara preliminärt bokade utan att det syns här. 
-                        Vi håller normalt rum reserverade i 48 timmar innan bokningen bekräftas i systemet.
-                        Kontakta oss för att säkerställa tillgänglighet.
-                    </div>
-                    
-                    <div className="legend">
-                        <div className="legend-item">
-                            <div className="legend-dot available"></div>
-                            <span>Ledigt</span>
-                        </div>
-                        <div className="legend-item">
-                            <div className="legend-dot on-hold"></div>
-                            <span>On hold (preliminärt)</span>
-                        </div>
-                        <div className="legend-item">
-                            <div className="legend-dot booked"></div>
-                            <span>Bokat</span>
-                        </div>
-                    </div>
-                    
-                    <div className="view-toggle">
-                        <button 
-                            className={{`filter-btn ${{view === 'rooms' ? 'active' : ''}}`}}
-                            onClick={{() => setView('rooms')}}
-                        >
-                            📋 Per rum
-                        </button>
-                        <button 
-                            className={{`filter-btn ${{view === 'weeks' ? 'active' : ''}}`}}
-                            onClick={{() => setView('weeks')}}
-                        >
-                            📅 Per vecka
-                        </button>
-                    </div>
-                    
-                    <div className="controls">
-                        <button 
-                            className={{`filter-btn ${{buildingFilter === 'all' ? 'active' : ''}}`}}
-                            onClick={{() => setBuildingFilter('all')}}
-                        >
-                            Alla byggnader
-                        </button>
-                        {{buildings.map(b => (
-                            <button 
-                                key={{b}}
-                                className={{`filter-btn ${{buildingFilter === b ? 'active' : ''}}`}}
-                                onClick={{() => setBuildingFilter(b)}}
-                            >
-                                {{b}}
-                            </button>
-                        ))}}
-                    </div>
-                    
-                    {{view === 'rooms' ? (
-                        <div className="grid-view">
-                            {{filteredRooms.map(room => (
-                                <div key={{room.row}} className="room-card">
-                                    <div className="room-header">
-                                        <span className="room-name">{{room.name}}</span>
-                                        <span className="building-tag">{{room.building}}</span>
-                                    </div>
-                                    <div className="weeks-grid">
-                                        {{data.saturdays.map(sat => {{
-                                            const avail = room.availability[sat.date];
-                                            const status = avail?.status || 'booked';
-                                            return (
-                                                <div 
-                                                    key={{sat.date}}
-                                                    className={{`week-cell ${{status}}`}}
-                                                    title={{status === 'available' ? 'Ledigt' : (status === 'on_hold' ? 'On hold: ' + avail?.bookedBy : avail?.bookedBy)}}
-                                                >
-                                                    <div className="week-label">{{sat.display}}</div>
-                                                    <div className="week-num">v{{sat.weekNum}}</div>
-                                                </div>
-                                            );
-                                        }})}}
-                                    </div>
-                                </div>
-                            ))}}
-                        </div>
-                    ) : (
-                        <div>
-                            {{roomsPerWeek.map(week => (
-                                <div key={{week.date}} className="week-section">
-                                    <div className="week-header">
-                                        <span className="week-date">
-                                            {{week.display}} (v{{week.weekNum}})
-                                        </span>
-                                        <span className="week-count">
-                                            {{week.availableRooms.length}} lediga
-                                            {{week.onHoldRooms.length > 0 && ` + ${{week.onHoldRooms.length}} on hold`}}
-                                        </span>
-                                    </div>
-                                    <div className="rooms-list">
-                                        {{week.availableRooms
-                                            .filter(r => buildingFilter === 'all' || r.building === buildingFilter)
-                                            .map(room => (
-                                            <span key={{room.row}} className="room-tag">
-                                                {{room.name}}
-                                            </span>
-                                        ))}}
-                                        {{week.onHoldRooms
-                                            .filter(r => buildingFilter === 'all' || r.building === buildingFilter)
-                                            .map(room => (
-                                            <span key={{room.row}} className="room-tag on-hold">
-                                                {{room.name}} (on hold)
-                                            </span>
-                                        ))}}
-                                    </div>
-                                </div>
-                            ))}}
-                        </div>
-                    )}}
-                    
-                    <footer>
-                        <a href="mailto:pia@wildwind.se?subject=Wildwind%20bokningsförfrågan" className="contact-btn">
-                            ✉️ Skicka bokningsförfrågan
-                        </a>
-                        <p style={{{{marginTop: '30px'}}}}>
-                            Vid frågor, kontakta <a href="mailto:pia@wildwind.se" style={{{{color: '#4facfe'}}}}>pia@wildwind.se</a>
-                        </p>
-                    </footer>
-                </div>
-            );
-        }}
-        
-        ReactDOM.render(<App />, document.getElementById('root'));
-    </script>
+<header>
+  <h1>Wildwind – Rumstillgänglighet 2026</h1>
+  <span class="updated">Uppdaterad: <span id="upd"></span></span>
+</header>
+
+<div class="legend">
+  <div class="legend-item"><div class="dot dot-green"></div> Ledig</div>
+  <div class="legend-item"><div class="dot dot-orange"></div> Preliminärt bokad</div>
+  <div class="legend-item"><div class="dot dot-red"></div> Bokad</div>
+  <span class="note">Alla veckor lördag–lördag &nbsp;·&nbsp; Sailing-pris per person/v (2 delar rum)</span>
+</div>
+
+<div class="filter-bar">
+  <label>Filtrera:</label>
+  <input type="text" id="roomFilter" placeholder="Rum (t.ex. M3)" oninput="renderTable()"/>
+  <select id="statusFilter" onchange="renderTable()">
+    <option value="all">Alla statusar</option>
+    <option value="available">Visa bara lediga</option>
+  </select>
+  <select id="weekFilter" onchange="renderTable()">
+    <option value="all">Alla veckor</option>
+  </select>
+</div>
+
+<div class="table-wrap">
+  <table id="avail-table"></table>
+</div>
+
+<div class="info-box">
+  ℹ️ Vissa rum kan vara preliminärt bokade i upp till 48 timmar utan att det syns här.
+  Kontakta oss för att säkerställa aktuell tillgänglighet innan du bekräftar resan till dina kunder.
+</div>
+
+<a href="mailto:pia@wildwind.se?subject=Wildwind%20bokningsf%C3%B6rfr%C3%A5gan" class="contact-btn">
+  ✉️ Skicka bokningsförfrågan
+</a>
+
+<script>
+{data_js}
+
+document.getElementById('upd').textContent = UPDATED;
+
+// Populate week filter
+const wf = document.getElementById('weekFilter');
+WEEKS.forEach((w,i) => {{
+  const opt = document.createElement('option');
+  opt.value = i; opt.textContent = w.label + (w.price ? ' – ' + w.price.toLocaleString('sv-SE') + ' kr' : '');
+  wf.appendChild(opt);
+}});
+
+function renderTable() {{
+  const roomQ  = document.getElementById('roomFilter').value.toLowerCase();
+  const statQ  = document.getElementById('statusFilter').value;
+  const weekQ  = document.getElementById('weekFilter').value;
+
+  const filtWeeks = weekQ === 'all'
+    ? WEEKS.map((_,i) => i)
+    : [parseInt(weekQ)];
+
+  const table = document.getElementById('avail-table');
+  let html = '<thead><tr><th>Rum</th>';
+  filtWeeks.forEach(i => {{
+    const w = WEEKS[i];
+    html += `<th><span class="week-date">${{w.label}}</span>`;
+    html += w.price ? `<span class="week-price">${{w.price.toLocaleString('sv-SE')}} kr</span>` : '<span class="week-price">&nbsp;</span>';
+    html += '</th>';
+  }});
+  html += '</tr></thead><tbody>';
+
+  ROOMS.forEach(room => {{
+    if (roomQ && !room.name.toLowerCase().includes(roomQ)) return;
+    if (statQ === 'available') {{
+      const anyFree = filtWeeks.some(i => room.weeks[i] === 'available');
+      if (!anyFree) return;
+    }}
+    html += `<tr><td>${{room.name}}</td>`;
+    filtWeeks.forEach(i => {{
+      const st = room.weeks[i] || 'available';
+      const label = st === 'available' ? '✓' : st === 'on_hold' ? '~' : '✕';
+      html += `<td><div class="cell cell-${{st}}" title="${{WEEKS[i].label}} – ${{st === 'available' ? 'Ledig' : st === 'on_hold' ? 'Prel. bokad' : 'Bokad'}}">${{label}}</div></td>`;
+    }});
+    html += '</tr>';
+  }});
+  html += '</tbody>';
+  table.innerHTML = html;
+}}
+
+renderTable();
+</script>
 </body>
 </html>'''
-    
     return html
 
+# ─── MAIN ─────────────────────────────────────────────────────────────
 def main():
     print("🚀 Wildwind Availability Updater")
     print("=" * 40)
-    
     try:
-        # Download
         excel_file = download_excel()
-        
-        # Parse
         data = parse_availability(excel_file)
-        
-        # Generate HTML
         html = generate_html(data)
-        
-        # Write output
-        output_path = Path(OUTPUT_FILE)
-        output_path.write_text(html, encoding='utf-8')
-        print(f"✅ Generated {OUTPUT_FILE}")
-        
-        # Cleanup
+        Path(OUTPUT_FILE).write_text(html, encoding='utf-8')
+        print(f"✅ Genererade {OUTPUT_FILE}")
         Path("temp_availability.xlsx").unlink(missing_ok=True)
-        
-        print("=" * 40)
-        print("🎉 Done!")
-        
+        print("🎉 Klar!")
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"❌ Fel: {e}")
         raise
 
 if __name__ == "__main__":

@@ -292,27 +292,27 @@ section { padding: 88px 40px; }
 .prices-section { background: var(--white); }
 .prices-grid {
   display: grid; grid-template-columns: repeat(3, 1fr);
-  gap: 24px; margin-top: 12px;
+  gap: 12px; margin-top: 12px;
 }
 .price-card {
   background: var(--sand);
-  border-radius: 12px; padding: 32px 28px;
-  border-top: 4px solid var(--azure);
+  border-radius: 8px; padding: 14px 16px;
+  border-top: 3px solid var(--azure);
   transition: transform .2s, box-shadow .2s;
 }
-.price-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(11,61,114,0.12); }
+.price-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(11,61,114,0.10); }
 .price-card-name {
   font-family: 'Cormorant Garamond', serif;
-  font-size: 22px; color: var(--azure); margin-bottom: 4px;
+  font-size: 15px; color: var(--azure); margin-bottom: 2px;
 }
-.price-card-type { font-size: 12px; color: var(--text-light); margin-bottom: 20px; }
-.price-card-from { font-size: 12px; color: var(--text-mid); margin-bottom: 4px; }
+.price-card-type { font-size: 11px; color: var(--text-light); margin-bottom: 8px; }
+.price-card-from { font-size: 11px; color: var(--text-mid); margin-bottom: 2px; }
 .price-card-amount {
-  font-size: 28px; font-weight: 300; color: var(--azure);
+  font-size: 20px; font-weight: 300; color: var(--azure);
   font-family: 'Cormorant Garamond', serif;
 }
-.price-card-amount sup { font-size: 14px; }
-.price-card-note { font-size: 11px; color: var(--text-light); margin-top: 8px; }
+.price-card-amount sup { font-size: 11px; }
+.price-card-note { font-size: 10px; color: var(--text-light); margin-top: 4px; }
 
 /* ─── FOOTER ─── */
 footer {
@@ -667,7 +667,8 @@ footer strong { color: #fff; }
   <div class="section-inner">
     <p class="section-label">Aktuell status</p>
     <h2 class="section-title">Rumstillgänglighet 2026</h2>
-    <p class="section-sub">Uppdateras automatiskt varje morgon. Grönt = ledig vecka, orange = preliminärt bokad, rött = bokad.</p>
+    <p class="section-sub">Uppdateras automatiskt varje morgon. Grönt = ledig, orange = preliminärt bokad, rött = bokad.<br>
+    <span style="color:rgba(255,255,255,0.9);font-weight:600;">👆 Klicka på en grön ruta</span> <span style="color:rgba(255,255,255,0.7);">för att se priser för den veckan och det rummet – och för att skicka en intresseanmälan.</span></p>
     <div class="avail-frame" style="margin-top:32px;">
       <iframe src="availability.html" title="Tillgänglighetskalender"></iframe>
     </div>
@@ -704,7 +705,7 @@ footer strong { color: #fff; }
       </div>
       <div class="map-frame">
         <iframe
-          src="https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d1500!2d20.5986!3d38.6270!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1ssv!2sse!4v1700000000000!5m2!1ssv!2sse&q=Vassiliki+Beach+Lefkada+Greece"
+          src="https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d8000!2d20.5986!3d38.6270!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1ssv!2sse!4v1700000000000!5m2!1ssv!2sse"
           allowfullscreen="" loading="lazy"
           referrerpolicy="no-referrer-when-downgrade">
         </iframe>

@@ -247,6 +247,26 @@ td.cell{{padding:0;border:1px solid #ece7dc;}}
 .infobox{{margin:0 20px 24px;padding:10px 14px;background:#EDF3FA;border-left:4px solid #5BA4CF;border-radius:6px;font-size:11px;color:var(--mid);}}
 .cta{{display:inline-flex;align-items:center;gap:8px;margin:0 20px 28px;padding:12px 24px;background:var(--azure);color:#fff;border-radius:40px;text-decoration:none;font-size:13px;font-weight:600;}}
 .cta:hover{{background:var(--azure2);}}
+
+/* POPUP */
+.popup-overlay{{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;align-items:center;justify-content:center;padding:20px;}}
+.popup-overlay.open{{display:flex;}}
+.popup{{background:#fff;border-radius:14px;padding:28px;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25);position:relative;animation:popIn .2s ease;}}
+@keyframes popIn{{from{{opacity:0;transform:scale(.95)}}to{{opacity:1;transform:scale(1)}}}}
+.popup-close{{position:absolute;top:14px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--mid);line-height:1;}}
+.popup-close:hover{{color:var(--text);}}
+.popup-room{{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:600;color:var(--azure);margin-bottom:2px;}}
+.popup-week{{font-size:13px;color:var(--mid);margin-bottom:16px;}}
+.popup-desc{{font-size:12px;color:var(--mid);margin-bottom:16px;padding:10px 12px;background:var(--sand);border-radius:8px;line-height:1.6;}}
+.popup-prices{{display:flex;flex-direction:column;gap:6px;margin-bottom:20px;}}
+.pp-row{{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-radius:8px;background:var(--sand);}}
+.pp-row.highlight{{background:var(--azure);color:#fff;}}
+.pp-label{{font-size:12px;font-weight:600;}}
+.pp-val{{font-size:14px;font-weight:700;}}
+.pp-note{{font-size:10px;opacity:.7;margin-top:1px;}}
+.popup-ppp{{font-size:11px;color:var(--mid);text-align:center;margin-bottom:16px;}}
+.popup-book{{display:flex;align-items:center;justify-content:center;gap:8px;background:var(--azure);color:#fff;padding:14px;border-radius:40px;text-decoration:none;font-size:14px;font-weight:700;transition:background .2s;}}
+.popup-book:hover{{background:var(--azure2);}}
 </style>
 </head>
 <body>
@@ -281,8 +301,21 @@ td.cell{{padding:0;border:1px solid #ece7dc;}}
   <table id="tbl"></table>
 </div>
 
-<div class="infobox">ℹ️ Rum kan vara preliminärt bokade i upp till 48h utan att synas. Kontakta oss för aktuell status. Pris = Sailing 1v/person (2 delar rum) exkl. rumstillägg.</div>
+<div class="infobox">ℹ️ Rum kan vara preliminärt bokade i upp till 48h utan att synas här. Kontakta oss för aktuell status.<br><strong>Priser per person baserat på att två delar rum</strong>, exkl. eventuellt rumstillägg. Klicka på en grön ruta för prisdetaljer.</div>
 <a href="mailto:pia@wildwind.se?subject=Wildwind%20bokningsf%C3%B6rfr%C3%A5gan" class="cta">✉ Skicka bokningsförfrågan</a>
+
+<!-- POPUP -->
+<div class="popup-overlay" id="overlay" onclick="closePopup(event)">
+  <div class="popup">
+    <button class="popup-close" onclick="closePopup()">✕</button>
+    <div class="popup-room" id="p-room"></div>
+    <div class="popup-week" id="p-week"></div>
+    <div class="popup-desc" id="p-desc"></div>
+    <div class="popup-prices" id="p-prices"></div>
+    <div class="popup-ppp">Pris per person baserat på att två delar rum</div>
+    <a id="p-book" href="#" class="popup-book">✉ Intresseanmälan / Boka</a>
+  </div>
+</div>
 
 <script>
 {djs}
@@ -362,7 +395,8 @@ function render() {{
         const st = r.weeks[i] || 'available';
         const lbl = st==='available' ? '✓' : st==='on_hold' ? '~' : '✕';
         const tip2 = WEEKS[i].display + ': ' + (st==='available'?'Ledig':st==='on_hold'?'Preliminär':'Bokad');
-        h += '<td class="cell"><div class="ci ci-' + st + '" title="' + tip2 + '">' + lbl + '</div></td>';
+        const clickAttr = st==='available' ? ` onclick="openPopup('${{name}}',${{i}})" style="cursor:pointer;"` : '';
+        h += '<td class="cell"><div class="ci ci-' + st + '"' + clickAttr + ' title="' + tip2 + '">' + lbl + '</div></td>';
       }});
       h += '</tr>';
     }});
@@ -373,6 +407,51 @@ function render() {{
 }}
 
 render();
+
+function openPopup(name, wi) {{
+  const w    = WEEKS[wi];
+  const info = ROOM_INFO[name] || {{}};
+  const til  = info.t || 0;
+
+  document.getElementById('p-room').textContent = name;
+  document.getElementById('p-week').textContent = 'Vecka ' + w.display + (w.sail1 ? ' · Sailing fr. ' + w.sail1.toLocaleString('sv-SE') + ' kr' : '');
+  document.getElementById('p-desc').textContent = info.desc || '';
+
+  const progs = [
+    ['Sailing 1 vecka', w.sail1], ['Sailing 2 veckor', w.sail2],
+    ['FAW 1 vecka', w.faw1],      ['FAW 2 veckor', w.faw2],
+    ['Healthy Options 1v', w.ho1],['Healthy Options 2v', w.ho2],
+  ];
+  let ph = '';
+  progs.forEach(([lbl, base], idx) => {{
+    if (!base) return;
+    const total = base + til;
+    const hi = idx === 0 ? ' highlight' : '';
+    ph += '<div class="pp-row' + hi + '">';
+    ph += '<div><div class="pp-label">' + lbl + '</div>';
+    if (til && idx === 0) ph += '<div class="pp-note">inkl. rumstillägg ' + til.toLocaleString('sv-SE') + ' kr</div>';
+    ph += '</div>';
+    ph += '<div class="pp-val">' + total.toLocaleString('sv-SE') + ' kr</div>';
+    ph += '</div>';
+  }});
+  if (w.single) {{
+    ph += '<div class="pp-row"><div class="pp-label">Enkelrumstillägg</div><div class="pp-val">+' + w.single.toLocaleString('sv-SE') + ' kr/v</div></div>';
+  }}
+  document.getElementById('p-prices').innerHTML = ph;
+
+  const subj = encodeURIComponent('Intresseanmälan: ' + name + ' vecka ' + w.display);
+  document.getElementById('p-book').href = 'mailto:pia@wildwind.se?subject=' + subj;
+  document.getElementById('overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}}
+
+function closePopup(e) {{
+  if (e && e.target !== document.getElementById('overlay') && !e.target.classList.contains('popup-close')) return;
+  document.getElementById('overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}}
+
+document.addEventListener('keydown', e => {{ if (e.key === 'Escape') closePopup({{target:document.getElementById('overlay')}}); }});
 </script>
 </body>
 </html>"""

@@ -1,30 +1,25 @@
 #!/usr/bin/env python3
-"""
-Wildwind Room Availability Updater
-Downloads Excel from Dropbox and generates availability.html
-"""
+"""Wildwind Room Availability Updater – genererar availability.html"""
 
-import json
-import requests
-import pandas as pd
+import json, requests, pandas as pd
 from datetime import datetime
 from pathlib import Path
 
-# ─── CONFIG ───────────────────────────────────────────────────────────
 DROPBOX_URL = "https://www.dropbox.com/scl/fi/i0ji499omsoc0yl4fuzo7/STEPH-VERSION-ALL-ROOMS-2026.xlsx?rlkey=lq3j8vz7hdlnoqvairj0yp2ih&dl=1"
 OUTPUT_FILE = "availability.html"
 
-# Excel-rad → visningsnamn (A+B kolumnerna, förkortat)
+# ── Excel-rad → visningsnamn ──────────────────────────────────────────
+# M7AB borttaget (nu UK-rum). K9, Xristina 2, Xristina 4, X Bungalow tillagda.
 ROW_TO_NAME = {
     44:  "Melas 1",
     48:  "Melas 2AB",   # kombineras med rad 52
     56:  "Melas 3",
     60:  "Melas 4",
-    72:  "Melas 7AB",   # kombineras med rad 76
     80:  "Melas 8",
     140: "Kav 2",
     144: "Kav 3",
     148: "Kav 4",
+    168: "Kav 9",
     184: "Kav 13",
     188: "Kav 14",
     192: "Kav 15",
@@ -35,29 +30,21 @@ ROW_TO_NAME = {
     224: "Akti 9",
     244: "Akti 4",
     248: "Akti 5",
+    256: "Xristina 2",
+    264: "Xristina 4",
     272: "Xristina 6",
+    276: "X Bungalow",
     284: "NM208",
 }
 
-# Kombinerade familjerum – bokad om NÅGON rad är bokad
+# Melas 2AB: kombinera rad 48+52 (bokad om NÅGON är bokad)
 COMBINED_ROOMS = {
     "Melas 2AB": [48, 52],
-    "Melas 7AB": [72, 76],
 }
 
-# Sailing-priser från wildwind.se (SEK/person/v, 2 delar rum)
-SAILING_PRICES = {
-    "25 Apr": 8990,  "2 May":  9430,  "9 May":  10300, "16 May": 10840,
-    "23 May": 10840, "30 May": 11930, "6 Jun":  12690, "13 Jun": 13020,
-    "20 Jun": 13890, "27 Jun": 14110, "4 Jul":  14440, "11 Jul": 14980,
-    "18 Jul": 15200, "25 Jul": 15200, "1 Aug":  15200, "8 Aug":  15200,
-    "15 Aug": 14110, "22 Aug": 12800, "29 Aug": 11930, "5 Sep":  11710,
-    "12 Sep": 11170, "19 Sep": 10300, "26 Sep": 9540,  "3 Oct":  8990,
-}
-
-# Alla priser från webben (SEK/person/v, 2 delar rum)
+# ── Priser från wildwind.se ───────────────────────────────────────────
+# (sail1, sail2, faw1, faw2, ho1, ho2, single)
 ALL_PRICES = {
-    # datum: (1v Sailing, 2v Sailing, 1v FatW, 2v FatW, 1v HO, 2v HO, enkelrum)
     "25 Apr": (8990,  14110, None,  None,  7570,  10840, 1910),
     "2 May":  (9430,  14440, None,  None,  7900,  13020, 2130),
     "9 May":  (10300, 16290, None,  None,  8120,  13350, 2180),
@@ -84,143 +71,136 @@ ALL_PRICES = {
     "3 Oct":  (8990,  13020, None,  None,  7360,  None,  1910),
 }
 
-# Ruminfo för mobilvy
+# ── Ruminfo ───────────────────────────────────────────────────────────
+# tillagg_num = per rum (2 pers), dvs kr/pers × 2
 ROOM_INFO = {
-    "Melas 1":    {"tillagg": "0 kr",     "tillagg_num": 0,    "info": "Twin · Sidoutsikt hav + Kav Bar"},
-    "Melas 2AB":  {"tillagg": "0 kr",     "tillagg_num": 0,    "info": "Twin+Double · Familjerum, havsutsikt"},
-    "Melas 3":    {"tillagg": "1 758 kr", "tillagg_num": 1758, "info": "Double · Full havsutsikt"},
-    "Melas 4":    {"tillagg": "1 758 kr", "tillagg_num": 1758, "info": "Twin · Full havsutsikt"},
-    "Melas 7AB":  {"tillagg": "0 kr",     "tillagg_num": 0,    "info": "Double+Twin · Familjerum, mot Ponti"},
-    "Melas 8":    {"tillagg": "0 kr",     "tillagg_num": 0,    "info": "Twin · Mot Ponti + berg västerut"},
-    "Kav 2":      {"tillagg": "0 kr",     "tillagg_num": 0,    "info": "Small Double · Ingen utsikt, baksida"},
-    "Kav 3":      {"tillagg": "0 kr",     "tillagg_num": 0,    "info": "Twin · Ingen utsikt, baksida (litet)"},
-    "Kav 4":      {"tillagg": "0 kr",     "tillagg_num": 0,    "info": "Double · Sidoutsikt mot trädgård"},
-    "Kav 13":     {"tillagg": "1 320 kr", "tillagg_num": 1320, "info": "Double · Pool + berg västerut, övervåning"},
-    "Kav 14":     {"tillagg": "1 320 kr", "tillagg_num": 1320, "info": "Double · Pool + berg, delar balkong Kav 13"},
-    "Kav 15":     {"tillagg": "1 320 kr", "tillagg_num": 1320, "info": "Double · Pool + berg västerut, övervåning"},
-    "Kav 18":     {"tillagg": "1 320 kr", "tillagg_num": 1320, "info": "Twin · Havsutsikt över Kav Bar, övervåning"},
-    "Kav 19":     {"tillagg": "1 320 kr", "tillagg_num": 1320, "info": "Twin · Sidoutsikt mot hav + byn"},
-    "Akti 4":     {"tillagg": "1 758 kr", "tillagg_num": 1758, "info": "Studio · Twin, pentry, övervåning"},
-    "Akti 5":     {"tillagg": "1 758 kr", "tillagg_num": 1758, "info": "Studio · Twin, pentry, övervåning"},
-    "Akti 7":     {"tillagg": "3 516 kr", "tillagg_num": 3516, "info": "2-sovrum · Double+Twin+extra, fullt kök (min 4 pers)"},
-    "Akti 8":     {"tillagg": "3 516 kr", "tillagg_num": 3516, "info": "2-sovrum · Double+Twin+extra, fullt kök (min 4 pers)"},
-    "Akti 9":     {"tillagg": "1 758 kr", "tillagg_num": 1758, "info": "1-sovrum · Twin + extra i hall, pentry"},
-    "Xristina 6": {"tillagg": "3 516 kr", "tillagg_num": 3516, "info": "1-sovrum · Double+2 enklar, kitchenette (13 jul–15 sep)"},
-    "NM208":      {"tillagg": "2 638 kr", "tillagg_num": 2638, "info": "Double · Bergutsikt bakåt, övervåning"},
+    "Melas 1":    {"t": 0,    "sängar": "Twin",           "info": "Sidoutsikt mot Kav Bar · Bottenvåning"},
+    "Melas 2AB":  {"t": 0,    "sängar": "Double + Twin",  "info": "Familjerum · Sid- och havsutsikt · Bottenvåning"},
+    "Melas 3":    {"t": 1758, "sängar": "Double",         "info": "Havsutsikt mot stranden · Bottenvåning"},
+    "Melas 4":    {"t": 1758, "sängar": "Twin",           "info": "Havsutsikt mot stranden · Bottenvåning"},
+    "Melas 8":    {"t": 0,    "sängar": "Twin",           "info": "Utsikt mot Ponti och berg · Bottenvåning"},
+    "Kav 2":      {"t": 0,    "sängar": "Twin",           "info": "Utsikt mot berg norrut · Bottenvåning"},
+    "Kav 3":      {"t": 0,    "sängar": "Twin",           "info": "Utsikt mot berg norrut · Bottenvåning"},
+    "Kav 4":      {"t": 0,    "sängar": "Double",         "info": "Utsikt mot gräsmattan österut · Bottenvåning"},
+    "Kav 9":      {"t": 0,    "sängar": "Double",         "info": "Mot poolen, utan uteplats · Bottenvåning"},
+    "Kav 13":     {"t": 1320, "sängar": "Twin",           "info": "Utsikt mot berg norrut · Övervåning"},
+    "Kav 14":     {"t": 1320, "sängar": "Double",         "info": "Mot poolen · Övervåning"},
+    "Kav 15":     {"t": 1320, "sängar": "Double",         "info": "Mot poolen · Övervåning"},
+    "Kav 18":     {"t": 1320, "sängar": "Twin",           "info": "Havsutsikt · Övervåning"},
+    "Kav 19":     {"t": 1320, "sängar": "Twin",           "info": "Mot byn österut · Övervåning"},
+    "Akti 7":     {"t": 1758, "sängar": "Double + Twin",  "info": "2-sovrum, fullt kök · Min 4 pers · Bottenvåning"},
+    "Akti 8":     {"t": 1758, "sängar": "Double + Twin",  "info": "2-sovrum, fullt kök · Min 4 pers · Bottenvåning"},
+    "Akti 9":     {"t": 1758, "sängar": "Twin + extra",   "info": "1-sovrum, pentry · Bottenvåning"},
+    "Akti 4":     {"t": 1320, "sängar": "Twin",           "info": "Studio, pentry · Övervåning"},
+    "Akti 5":     {"t": 1320, "sängar": "Twin",           "info": "Studio, pentry · Övervåning"},
+    "Xristina 2": {"t": 1320, "sängar": "Twin",           "info": "Studio, pentry · Havsutsikt på avstånd"},
+    "Xristina 4": {"t": 1320, "sängar": "Twin",           "info": "Studio, pentry · Trädgårdsvy norrut"},
+    "Xristina 6": {"t": 1758, "sängar": "Double + 2 enk","info": "1-sovrum, kitchenette · Trädgårdsvy · 13 jul–15 sep"},
+    "X Bungalow": {"t": 1320, "sängar": "Double + 2 enk","info": "Eget hus i trädgården · Mot bergen norrut"},
+    "NM208":      {"t": 2638, "sängar": "Double",         "info": "Bergutsikt bakåt · Övervåning · New Melas"},
 }
 
-# ─── DOWNLOAD ─────────────────────────────────────────────────────────
+SECTIONS = [
+    {"label": "Melas Hotel",         "rooms": ["Melas 1","Melas 2AB","Melas 3","Melas 4","Melas 8"]},
+    {"label": "Kavadias Hotel",      "rooms": ["Kav 2","Kav 3","Kav 4","Kav 9","Kav 13","Kav 14","Kav 15","Kav 18","Kav 19"]},
+    {"label": "AKTI Apartments",     "rooms": ["Akti 4","Akti 5","Akti 7","Akti 8","Akti 9"]},
+    {"label": "Xristina Apartments", "rooms": ["Xristina 2","Xristina 4","Xristina 6","X Bungalow"]},
+    {"label": "New Melas",           "rooms": ["NM208"]},
+]
+
+# ── Download ──────────────────────────────────────────────────────────
 def download_excel():
-    print("📥 Laddar ner Excel från Dropbox...")
+    print("📥 Laddar ner Excel...")
     r = requests.get(DROPBOX_URL, timeout=30)
     r.raise_for_status()
-    tmp = Path("temp_availability.xlsx")
-    tmp.write_bytes(r.content)
+    p = Path("temp_availability.xlsx")
+    p.write_bytes(r.content)
     print(f"✅ {len(r.content):,} bytes")
-    return tmp
+    return p
 
-# ─── PARSE ────────────────────────────────────────────────────────────
-def parse_availability(excel_path):
-    print("📊 Läser tillgänglighet...")
-    df = pd.read_excel(excel_path, header=None)
+# ── Parse ─────────────────────────────────────────────────────────────
+def parse_availability(path):
+    print("📊 Läser Excel...")
+    df = pd.read_excel(path, header=None)
 
-    # Hitta lördagskolumner
+    # Hitta lördagskolumner (rad 2 = index 1 har "SATURDAY")
     saturdays = []
     for col in range(3, len(df.columns), 2):
-        date_val = df.iloc[0, col]
-        day_name = df.iloc[1, col]
-        if pd.notna(day_name) and 'SATURDAY' in str(day_name).upper():
-            if pd.notna(date_val):
-                dt = pd.to_datetime(date_val)
-                label = dt.strftime('%-d %b')
-                prices = ALL_PRICES.get(label, (None,)*7)
-                saturdays.append({
-                    'col':       col,
-                    'date':      dt.strftime('%Y-%m-%d'),
-                    'display':   label,
-                    'price':     SAILING_PRICES.get(label),  # 1v sailing
-                    'sail2':     prices[1],
-                    'fatw1':     prices[2],
-                    'fatw2':     prices[3],
-                    'ho1':       prices[4],
-                    'ho2':       prices[5],
-                    'single':    prices[6],
-                })
+        dv = df.iloc[0, col]
+        dn = df.iloc[1, col]
+        if pd.notna(dn) and "SATURDAY" in str(dn).upper() and pd.notna(dv):
+            dt    = pd.to_datetime(dv)
+            label = dt.strftime("%-d %b")
+            p     = ALL_PRICES.get(label, (None,)*7)
+            saturdays.append({
+                "col": col, "date": dt.strftime("%Y-%m-%d"),
+                "display": label,
+                "sail1": p[0], "sail2": p[1],
+                "faw1":  p[2], "faw2":  p[3],
+                "ho1":   p[4], "ho2":   p[5],
+                "single":p[6],
+            })
+    print(f"   {len(saturdays)} lördagar")
 
-    print(f"   {len(saturdays)} lördagar hittade")
-
-    def get_week_statuses(r_idx):
-        statuses = []
+    def row_statuses(r_idx):
+        result = []
         for sat in saturdays:
-            sat_col = sat['col']
-            booked  = False
-            on_hold = False
+            sc = sat["col"]
+            booked = on_hold = False
             for d in range(7):
-                col = sat_col + d * 2
-                if col >= len(df.columns):
-                    break
-                # Bokad: namn i rumraden (rad 0)
-                v = df.iloc[r_idx, col]
-                if pd.notna(v) and str(v).strip() not in ('', 'nan'):
+                c = sc + d * 2
+                if c >= len(df.columns): break
+                # Bokad: värde i rumraden
+                v = df.iloc[r_idx, c]
+                if pd.notna(v) and str(v).strip() not in ("", "nan"):
                     booked = True
-                # On hold: sök i raderna +1, +2, +3 under rumraden
-                for offset in [1, 2, 3]:
-                    if r_idx + offset < len(df):
-                        h = df.iloc[r_idx + offset, col]
-                        if pd.notna(h):
-                            h_str = str(h).strip().lower()
-                            if h_str not in ('', 'nan') and any(
-                                k in h_str for k in ('hold', 'option', 'prel')
-                            ):
-                                on_hold = True
-            statuses.append(
+                # On hold: sök i +1, +2, +3 raderna under
+                for off in [1, 2, 3]:
+                    if r_idx + off < len(df):
+                        h = df.iloc[r_idx + off, c]
+                        if pd.notna(h) and any(
+                            k in str(h).lower() for k in ("hold","option","prel")
+                        ):
+                            on_hold = True
+            result.append(
                 "booked" if booked else "on_hold" if on_hold else "available"
             )
-        return statuses
+        return result
 
-    rooms = []
-    added = set()
-
+    rooms, added = [], set()
     for row, name in ROW_TO_NAME.items():
-        if name in added:
-            continue
+        if name in added: continue
         r_idx = row - 1
         if r_idx >= len(df):
-            print(f"   ⚠️ Rad {row} ({name}) finns inte")
+            print(f"   ⚠️ Rad {row} ({name}) saknas")
             continue
-
         if name in COMBINED_ROOMS:
-            # Slå ihop rader – bokad om NÅGON är bokad
-            all_st = [get_week_statuses(r - 1) for r in COMBINED_ROOMS[name]]
-            week_status = []
+            all_st = [row_statuses(r - 1) for r in COMBINED_ROOMS[name]]
+            ws = []
             for i in range(len(saturdays)):
-                col_st = [s[i] for s in all_st]
-                week_status.append(
-                    "booked"    if "booked"   in col_st else
-                    "on_hold"   if "on_hold"  in col_st else
-                    "available"
-                )
+                col = [s[i] for s in all_st]
+                ws.append("booked" if "booked" in col else "on_hold" if "on_hold" in col else "available")
         else:
-            week_status = get_week_statuses(r_idx)
-
-        rooms.append({"name": name, "weeks": week_status})
+            ws = row_statuses(r_idx)
+        rooms.append({"name": name, "weeks": ws})
         added.add(name)
 
     print(f"   {len(rooms)} rum klara")
     return {"weeks": saturdays, "rooms": rooms}
 
-# ─── GENERATE HTML ────────────────────────────────────────────────────
+# ── Generate HTML ─────────────────────────────────────────────────────
 def generate_html(data):
     weeks = data["weeks"]
     rooms = data["rooms"]
     now   = datetime.now().strftime("%d %b %Y, %H:%M")
 
-    data_js  = f"const WEEKS = {json.dumps(weeks, ensure_ascii=False)};\n"
-    data_js += f"const ROOMS = {json.dumps(rooms, ensure_ascii=False)};\n"
-    data_js += f"const ROOM_INFO = {json.dumps(ROOM_INFO, ensure_ascii=False)};\n"
-    data_js += f"const UPDATED = '{now}';\n"
+    djs  = f"const WEEKS={json.dumps(weeks, ensure_ascii=False)};\n"
+    djs += f"const ROOMS={json.dumps(rooms, ensure_ascii=False)};\n"
+    djs += f"const ROOM_INFO={json.dumps(ROOM_INFO, ensure_ascii=False)};\n"
+    djs += f"const SECTIONS={json.dumps(SECTIONS, ensure_ascii=False)};\n"
+    djs += f"const UPDATED='{now}';\n"
 
-    return f'''<!DOCTYPE html>
+    html = '''<!DOCTYPE html>
 <html lang="sv">
 <head>
 <meta charset="UTF-8"/>
@@ -228,389 +208,288 @@ def generate_html(data):
 <title>Wildwind – Rumstillgänglighet 2026</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@300;400;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet"/>
 <style>
-:root{{
+:root{
   --azure:#0B3D72;--azure2:#1A5C9A;--sky:#5BA4CF;--sand:#F5EDD8;--sand2:#E6D5BA;
   --green:#2E8B57;--orange:#E08C2A;--red:#C0392B;--gold:#C9963A;
   --green-bg:#E8F5EE;--orange-bg:#FEF3E2;--red-bg:#FDECEC;
   --white:#FDFAF5;--text:#2A2A2A;--mid:#666;
-}}
-*{{box-sizing:border-box;margin:0;padding:0;}}
-body{{font-family:'Nunito Sans',sans-serif;background:var(--white);color:var(--text);font-size:14px;}}
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Nunito Sans',sans-serif;background:var(--white);color:var(--text);font-size:14px;}
 
-/* ── HEADER ── */
-header{{background:var(--azure);color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}}
-header h1{{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;}}
-.header-right{{display:flex;align-items:center;gap:12px;}}
-.updated{{font-size:11px;opacity:0.6;}}
-.reload-btn{{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:6px 14px;border-radius:20px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:600;}}
-.reload-btn:hover{{background:rgba(255,255,255,0.28);}}
+header{background:var(--azure);color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+header h1{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;}
+.hright{display:flex;align-items:center;gap:12px;}
+.upd{font-size:11px;opacity:.6;}
+.reload{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:6px 14px;border-radius:20px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:600;}
+.reload:hover{background:rgba(255,255,255,.28);}
 
-/* ── CONTROLS ── */
-.controls{{background:var(--sand);padding:14px 20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;border-bottom:2px solid var(--sand2);}}
-.controls label{{font-size:12px;font-weight:700;color:var(--azure);text-transform:uppercase;letter-spacing:0.06em;}}
-.controls select{{padding:7px 12px;border:1.5px solid var(--sand2);border-radius:20px;font-family:inherit;font-size:13px;background:#fff;color:var(--text);cursor:pointer;}}
-.controls select:focus{{outline:none;border-color:var(--azure);}}
-.prog-btns{{display:flex;gap:6px;flex-wrap:wrap;}}
-.prog-btn{{padding:7px 14px;border-radius:20px;border:1.5px solid var(--sand2);background:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;color:var(--mid);}}
-.prog-btn.active{{background:var(--azure);color:#fff;border-color:var(--azure);}}
+.controls{background:var(--sand);padding:12px 20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;border-bottom:2px solid var(--sand2);}
+.controls label{font-size:11px;font-weight:700;color:var(--azure);text-transform:uppercase;letter-spacing:.06em;}
+.pbtn{padding:7px 14px;border-radius:20px;border:1.5px solid var(--sand2);background:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;color:var(--mid);transition:all .2s;}
+.pbtn.active{background:var(--azure);color:#fff;border-color:var(--azure);}
+.pbtns{display:flex;gap:6px;flex-wrap:wrap;}
+.show-sel{padding:7px 12px;border:1.5px solid var(--sand2);border-radius:20px;font-family:inherit;font-size:12px;background:#fff;cursor:pointer;}
 
-/* ── VECKONAVIGERING ── */
-.week-nav{{background:var(--azure2);color:#fff;padding:0 20px;display:flex;align-items:stretch;}}
-.week-nav-inner{{display:flex;align-items:center;gap:0;width:100%;overflow-x:auto;scrollbar-width:none;}}
-.week-nav-inner::-webkit-scrollbar{{display:none;}}
-.week-tab{{
-  padding:14px 16px;cursor:pointer;white-space:nowrap;
-  font-size:12px;font-weight:600;color:rgba(255,255,255,0.65);
-  border-bottom:3px solid transparent;transition:all .2s;flex-shrink:0;
-  display:flex;flex-direction:column;align-items:center;gap:3px;
-}}
-.week-tab:hover{{color:#fff;background:rgba(255,255,255,0.08);}}
-.week-tab.active{{color:#fff;border-bottom-color:var(--gold);}}
-.week-tab .wt-date{{font-size:13px;}}
-.week-tab .wt-avail{{font-size:10px;opacity:0.7;}}
-.week-tab.active .wt-avail{{opacity:1;color:var(--gold);}}
-.nav-arrow-btn{{
-  background:transparent;border:none;color:rgba(255,255,255,0.7);
-  font-size:22px;cursor:pointer;padding:0 10px;flex-shrink:0;
-  align-self:center;transition:color .2s;
-}}
-.nav-arrow-btn:hover{{color:#fff;}}
-.nav-arrow-btn:disabled{{opacity:0.2;cursor:default;}}
+.week-nav{background:var(--azure2);color:#fff;padding:0 20px;display:flex;align-items:stretch;}
+.wtabs{display:flex;align-items:center;flex:1;overflow-x:auto;scrollbar-width:none;}
+.wtabs::-webkit-scrollbar{display:none;}
+.wtab{padding:12px 14px;cursor:pointer;white-space:nowrap;font-size:12px;font-weight:600;color:rgba(255,255,255,.6);border-bottom:3px solid transparent;transition:all .2s;flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:2px;}
+.wtab:hover{color:#fff;background:rgba(255,255,255,.08);}
+.wtab.active{color:#fff;border-bottom-color:var(--gold);}
+.wtab .wdate{font-size:13px;}
+.wtab .wavail{font-size:10px;opacity:.7;}
+.wtab.active .wavail{opacity:1;color:var(--gold);}
+.narr{background:transparent;border:none;color:rgba(255,255,255,.7);font-size:22px;cursor:pointer;padding:0 8px;transition:color .2s;}
+.narr:hover{color:#fff;}
+.narr:disabled{opacity:.2;cursor:default;}
 
-/* ── PRIS-BANNER ── */
-.price-banner{{
-  background:#fff;border-bottom:1px solid #e8e0d0;
-  padding:12px 20px;display:flex;align-items:center;gap:24px;flex-wrap:wrap;
-}}
-.price-banner-date{{
-  font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--azure);font-weight:600;
-}}
-.price-chips{{display:flex;gap:8px;flex-wrap:wrap;}}
-.price-chip{{
-  padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;
-  background:var(--sand);color:var(--azure);border:1px solid var(--sand2);
-}}
-.price-chip.highlight{{background:var(--azure);color:#fff;border-color:var(--azure);}}
-.price-chip.dim{{opacity:0.45;}}
+.pbanner{background:#fff;border-bottom:1px solid #e8e0d0;padding:12px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.pbanner-date{font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--azure);font-weight:600;min-width:120px;}
+.pchips{display:flex;gap:8px;flex-wrap:wrap;}
+.pchip{padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;background:var(--sand);color:var(--azure);border:1px solid var(--sand2);cursor:pointer;transition:all .2s;}
+.pchip.active{background:var(--azure);color:#fff;border-color:var(--azure);}
+.pchip.na{opacity:.35;cursor:default;}
 
-/* ── RUMLISTA ── */
-.room-grid{{
-  display:grid;
-  grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));
-  gap:14px;padding:20px;
-}}
-.hotel-section{{grid-column:1/-1;}}
-.hotel-label{{
-  font-size:11px;font-weight:700;letter-spacing:0.14em;
-  text-transform:uppercase;color:var(--mid);
-  padding:4px 0 8px;border-bottom:2px solid var(--sand2);
-  margin-bottom:4px;
-}}
-.room-card{{
-  background:#fff;border-radius:10px;padding:16px;
-  border:1.5px solid #e8e0d0;transition:all .2s;
-  display:flex;flex-direction:column;gap:8px;
-}}
-.room-card:hover{{border-color:var(--sky);box-shadow:0 4px 16px rgba(11,61,114,0.08);}}
-.room-card.booked{{opacity:0.42;border-color:#eee;}}
-.room-card.on_hold{{border-color:var(--orange);background:var(--orange-bg);}}
-.room-card-top{{display:flex;align-items:center;gap:10px;}}
-.room-dot{{width:10px;height:10px;border-radius:50%;flex-shrink:0;}}
-.room-dot.available{{background:var(--green);}}
-.room-dot.on_hold{{background:var(--orange);}}
-.room-dot.booked{{background:var(--red);}}
-.room-card-name{{font-weight:700;font-size:15px;color:var(--azure);}}
-.room-card-status{{font-size:11px;font-weight:700;margin-left:auto;}}
-.status-available{{color:var(--green);}}
-.status-on_hold{{color:var(--orange);}}
-.status-booked{{color:var(--red);}}
-.room-card-info{{font-size:12px;color:var(--mid);line-height:1.5;}}
-.room-card-prices{{
-  background:var(--sand);border-radius:6px;padding:8px 10px;
-  display:flex;flex-direction:column;gap:3px;margin-top:2px;
-}}
-.room-price-row{{display:flex;justify-content:space-between;font-size:12px;}}
-.room-price-label{{color:var(--mid);}}
-.room-price-val{{font-weight:700;color:var(--azure);}}
-.room-price-val.selected{{color:var(--green);font-size:13px;}}
-.room-card-cta{{
-  display:flex;align-items:center;justify-content:center;gap:6px;
-  background:var(--azure);color:#fff;border-radius:6px;
-  padding:9px;font-size:12px;font-weight:600;
-  text-decoration:none;margin-top:2px;transition:background .2s;
-}}
-.room-card-cta:hover{{background:var(--azure2);}}
-.empty-state{{
-  grid-column:1/-1;text-align:center;
-  padding:60px 20px;color:var(--mid);
-}}
-.empty-state h3{{font-family:'Cormorant Garamond',serif;font-size:24px;color:var(--azure);margin-bottom:8px;}}
+.legend{display:flex;gap:16px;padding:8px 20px;background:#fff;border-bottom:1px solid #e8e0d0;flex-wrap:wrap;}
+.li{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;}
+.dot{width:10px;height:10px;border-radius:50%;}
+.dg{background:var(--green);}.do{background:var(--orange);}.dr{background:var(--red);}
 
-/* ── LEGEND ── */
-.legend{{display:flex;gap:16px;padding:8px 20px;background:#fff;border-bottom:1px solid #e8e0d0;flex-wrap:wrap;}}
-.legend-item{{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;}}
-.dot{{width:10px;height:10px;border-radius:50%;}}
-.dot-green{{background:var(--green);}} .dot-orange{{background:var(--orange);}} .dot-red{{background:var(--red);}}
+.rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px;padding:16px 20px;}
+.hsec{grid-column:1/-1;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--mid);padding:4px 0 6px;border-bottom:2px solid var(--sand2);}
+.rcard{background:#fff;border-radius:10px;padding:14px;border:1.5px solid #e8e0d0;display:flex;flex-direction:column;gap:8px;transition:all .2s;}
+.rcard:hover{border-color:var(--sky);box-shadow:0 4px 16px rgba(11,61,114,.08);}
+.rcard.on_hold{border-color:var(--orange);background:var(--orange-bg);}
+.rcard.booked{opacity:.38;pointer-events:none;}
+.rtop{display:flex;align-items:center;gap:8px;}
+.rdot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.rdot.available{background:var(--green);}.rdot.on_hold{background:var(--orange);}.rdot.booked{background:var(--red);}
+.rname{font-weight:700;font-size:15px;color:var(--azure);}
+.rstatus{font-size:11px;font-weight:700;margin-left:auto;}
+.sa{color:var(--green);}.so{color:var(--orange);}.sb{color:var(--red);}
+.rinfo{font-size:12px;color:var(--mid);line-height:1.5;}
+.rprices{background:var(--sand);border-radius:6px;padding:8px 10px;display:flex;flex-direction:column;gap:3px;}
+.rprow{display:flex;justify-content:space-between;font-size:12px;}
+.rplabel{color:var(--mid);}
+.rpval{font-weight:700;color:var(--azure);}
+.rpval.sel{color:var(--green);font-size:13px;}
+.rcta{display:flex;align-items:center;justify-content:center;gap:6px;background:var(--azure);color:#fff;border-radius:6px;padding:9px;font-size:12px;font-weight:600;text-decoration:none;transition:background .2s;margin-top:2px;}
+.rcta:hover{background:var(--azure2);}
+.empty{grid-column:1/-1;text-align:center;padding:50px 20px;color:var(--mid);}
+.empty h3{font-family:'Cormorant Garamond',serif;font-size:24px;color:var(--azure);margin-bottom:8px;}
 
-.info-box{{margin:0 20px 20px;padding:12px 16px;background:#EDF3FA;border-left:4px solid var(--sky);border-radius:6px;font-size:12px;color:var(--mid);line-height:1.6;}}
+.infobox{margin:0 20px 20px;padding:12px 16px;background:#EDF3FA;border-left:4px solid var(--sky);border-radius:6px;font-size:12px;color:var(--mid);line-height:1.6;}
 
-@media(max-width:600px){{
-  .room-grid{{grid-template-columns:1fr;padding:12px;gap:10px;}}
-  .controls{{padding:12px;gap:8px;}}
-  .price-banner{{padding:10px 12px;gap:12px;}}
-  .price-banner-date{{font-size:17px;}}
-}}
+@media(max-width:600px){
+  .rgrid{grid-template-columns:1fr;padding:10px 12px;}
+  .controls{padding:10px 12px;}
+  .pbanner{padding:10px 12px;}
+}
 </style>
 </head>
 <body>
 
 <header>
   <h1>🌊 Wildwind 2026</h1>
-  <div class="header-right">
-    <span class="updated">Uppdaterad: <span id="upd"></span></span>
-    <button class="reload-btn" onclick="location.reload(true)">↺ Uppdatera</button>
+  <div class="hright">
+    <span class="upd">Uppdaterad: <span id="upd"></span></span>
+    <button class="reload" onclick="location.reload(true)">↺ Uppdatera</button>
   </div>
 </header>
 
 <div class="controls">
   <label>Program:</label>
-  <div class="prog-btns">
-    <button class="prog-btn active" onclick="setProgram('sailing',this)">Sailing</button>
-    <button class="prog-btn" onclick="setProgram('faw',this)">FAW</button>
-    <button class="prog-btn" onclick="setProgram('ho',this)">Healthy Options</button>
-  </div>
-  <label style="margin-left:8px;">Varaktighet:</label>
-  <div class="prog-btns">
-    <button class="prog-btn active" onclick="setDuration(1,this)">1 vecka</button>
-    <button class="prog-btn" onclick="setDuration(2,this)">2 veckor</button>
+  <div class="pbtns" id="progBtns">
+    <button class="pbtn active" data-prog="sail1">Sailing 1v</button>
+    <button class="pbtn" data-prog="sail2">Sailing 2v</button>
+    <button class="pbtn" data-prog="faw1">FAW 1v</button>
+    <button class="pbtn" data-prog="faw2">FAW 2v</button>
+    <button class="pbtn" data-prog="ho1">HO 1v</button>
+    <button class="pbtn" data-prog="ho2">HO 2v</button>
   </div>
   <label style="margin-left:8px;">Visa:</label>
-  <select id="showFilter" onchange="render()">
+  <select class="show-sel" id="showSel" onchange="render()">
     <option value="available">Bara lediga</option>
     <option value="all">Alla rum</option>
   </select>
 </div>
 
 <div class="week-nav">
-  <button class="nav-arrow-btn" id="navPrev" onclick="shiftWeeks(-1)">&#8249;</button>
-  <div class="week-nav-inner" id="weekTabs"></div>
-  <button class="nav-arrow-btn" id="navNext" onclick="shiftWeeks(1)">&#8250;</button>
+  <button class="narr" id="navP" onclick="shift(-1)">&#8249;</button>
+  <div class="wtabs" id="wtabs"></div>
+  <button class="narr" id="navN" onclick="shift(1)">&#8250;</button>
 </div>
 
-<div class="price-banner" id="priceBanner"></div>
+<div class="pbanner" id="pbanner"></div>
 
 <div class="legend">
-  <div class="legend-item"><div class="dot dot-green"></div>Ledig</div>
-  <div class="legend-item"><div class="dot dot-orange"></div>Preliminärt bokad</div>
-  <div class="legend-item"><div class="dot dot-red"></div>Bokad</div>
+  <div class="li"><div class="dot dg"></div>Ledig</div>
+  <div class="li"><div class="dot do"></div>Preliminärt bokad</div>
+  <div class="li"><div class="dot dr"></div>Bokad</div>
 </div>
 
-<div class="room-grid" id="roomGrid"></div>
-
-<div class="info-box">ℹ️ Rum kan vara preliminärt bokade i upp till 48h utan att synas här. Kontakta oss för aktuell tillgänglighet.</div>
+<div class="rgrid" id="rgrid"></div>
+<div class="infobox">ℹ️ Rum kan vara preliminärt bokade i upp till 48h utan att synas här. Kontakta oss för aktuell status.</div>
 
 <script>
-{data_js}
-
+PLACEHOLDER_DJS
 document.getElementById('upd').textContent = UPDATED;
 
-const SECTIONS = [
-  {{ label:"Melas Hotel",         rooms:["Melas 1","Melas 2AB","Melas 3","Melas 4","Melas 7AB","Melas 8"] }},
-  {{ label:"Kavadias Hotel",      rooms:["Kav 2","Kav 3","Kav 4","Kav 13","Kav 14","Kav 15","Kav 18","Kav 19"] }},
-  {{ label:"AKTI Apartments",     rooms:["Akti 4","Akti 5","Akti 7","Akti 8","Akti 9"] }},
-  {{ label:"Xristina Apartments", rooms:["Xristina 6"] }},
-  {{ label:"New Melas",           rooms:["NM208"] }},
-];
+let prog = 'sail1', cw = 0, tabOff = 0;
+const TABS = () => window.innerWidth < 600 ? 4 : 8;
 
-let currentWeek = 0;
-let program = 'sailing';
-let duration = 1;
-let tabOffset = 0;
-const TABS_VISIBLE = window.innerWidth < 600 ? 4 : 8;
-
-// Starta på närmaste kommande lördag
+// Starta på närmaste lördag
 const today = new Date();
-for (let i = 0; i < WEEKS.length; i++) {{
-  if (new Date(WEEKS[i].date) >= today) {{ currentWeek = i; break; }}
-}}
-tabOffset = Math.max(0, currentWeek - 2);
+for (let i = 0; i < WEEKS.length; i++) {
+  if (new Date(WEEKS[i].date) >= today) { cw = i; break; }
+}
+tabOff = Math.max(0, cw - 2);
 
-function getPrice(w) {{
-  if (!w) return null;
-  if (program==='sailing') return duration===1 ? w.price  : w.sail2;
-  if (program==='faw')     return duration===1 ? w.fatw1  : w.fatw2;
-  if (program==='ho')      return duration===1 ? w.ho1    : w.ho2;
-  return null;
-}}
-
-function progLabel() {{
-  if (program==='sailing') return 'Sailing';
-  if (program==='faw')     return 'FAW';
-  return 'Healthy Options';
-}}
-
-function setProgram(p, btn) {{
-  program = p;
-  document.querySelectorAll('.prog-btns .prog-btn').forEach(b => b.classList.remove('active'));
-  // Mark only program buttons
-  btn.classList.add('active');
+// Program-knappar
+document.getElementById('progBtns').addEventListener('click', e => {
+  const b = e.target.closest('.pbtn');
+  if (!b) return;
+  const w = WEEKS[cw];
+  const key = b.dataset.prog;
+  const val = {sail1:w.sail1,sail2:w.sail2,faw1:w.faw1,faw2:w.faw2,ho1:w.ho1,ho2:w.ho2}[key];
+  if (!val) return; // ej tillgänglig denna vecka
+  prog = key;
+  document.querySelectorAll('.pbtn').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
   render();
-}}
+});
 
-function setDuration(d, btn) {{
-  duration = d;
-  // Mark only duration buttons
-  const allBtns = document.querySelectorAll('.prog-btns .prog-btn');
-  allBtns.forEach(b => {{ if (b.textContent.includes('vecka')) b.classList.remove('active'); }});
-  btn.classList.add('active');
-  render();
-}}
+function getVal(w, p) {
+  return {sail1:w.sail1,sail2:w.sail2,faw1:w.faw1,faw2:w.faw2,ho1:w.ho1,ho2:w.ho2}[p] || null;
+}
 
-function shiftWeeks(dir) {{
-  tabOffset = Math.max(0, Math.min(WEEKS.length - TABS_VISIBLE, tabOffset + dir));
-  renderTabs();
-}}
-
-function countAvailable(wi) {{
+function countFree(wi) {
   return ROOMS.filter(r => r.weeks[wi] === 'available').length;
-}}
+}
 
-function renderTabs() {{
-  const c = document.getElementById('weekTabs');
-  c.innerHTML = '';
-  const end = Math.min(WEEKS.length, tabOffset + TABS_VISIBLE);
-  for (let i = tabOffset; i < end; i++) {{
-    const w = WEEKS[i];
-    const avail = countAvailable(i);
-    const d = document.createElement('div');
-    d.className = 'week-tab' + (i===currentWeek?' active':'');
-    d.innerHTML = `<span class="wt-date">${{w.display}}</span><span class="wt-avail">${{avail}} lediga</span>`;
-    d.onclick = () => {{ currentWeek=i; renderTabs(); renderBanner(); renderRooms(); }};
-    c.appendChild(d);
-  }}
-  document.getElementById('navPrev').disabled = tabOffset === 0;
-  document.getElementById('navNext').disabled = tabOffset + TABS_VISIBLE >= WEEKS.length;
-}}
-
-function renderBanner() {{
-  const w = WEEKS[currentWeek];
-  const endDate = new Date(w.date); endDate.setDate(endDate.getDate() + (duration===2?14:7));
-  const endLabel = endDate.toLocaleDateString('sv-SE', {{day:'numeric', month:'short'}});
-  const basePrice = getPrice(w);
-  const b = document.getElementById('priceBanner');
-
-  const chips = [
-    {{label:'Sailing', val: duration===1?w.price:w.sail2, prog:'sailing'}},
-    {{label:'FAW',     val: duration===1?w.fatw1:w.fatw2, prog:'faw'}},
-    {{label:'HO',      val: duration===1?w.ho1:w.ho2,     prog:'ho'}},
-  ].filter(c => c.val);
-
-  let html = `<div class="price-banner-date">${{w.display}} – ${{endLabel}}</div>`;
-  html += `<div class="price-chips">`;
-  chips.forEach(c => {{
-    const cls = c.prog===program ? 'price-chip highlight' : 'price-chip';
-    html += `<div class="${{cls}}" onclick="setProgram('${{c.prog}}', this)" style="cursor:pointer">${{c.label}} ${{c.val.toLocaleString('sv-SE')}} kr</div>`;
-  }});
-  if (w.single) html += `<div class="price-chip dim">Enkelrum +${{w.single.toLocaleString('sv-SE')}} kr</div>`;
-  html += `</div>`;
-  b.innerHTML = html;
-}}
-
-function renderRooms() {{
-  const showAll = document.getElementById('showFilter').value === 'all';
-  const w = WEEKS[currentWeek];
-  const basePrice = getPrice(w);
-  const grid = document.getElementById('roomGrid');
-  let html = '';
-  let totalShown = 0;
-
-  SECTIONS.forEach(sec => {{
-    const secRooms = sec.rooms.filter(name => {{
-      const room = ROOMS.find(r => r.name===name);
-      if (!room) return false;
-      if (!showAll && room.weeks[currentWeek] !== 'available') return false;
-      return true;
-    }});
-    if (!secRooms.length) return;
-    totalShown += secRooms.length;
-    html += `<div class="hotel-section"><div class="hotel-label">${{sec.label}}</div></div>`;
-    secRooms.forEach(name => {{
-      const room = ROOMS.find(r => r.name===name);
-      const st = room.weeks[currentWeek] || 'available';
-      const info = ROOM_INFO[name] || {{}};
-      const tillagg = info.tillagg_num || 0;
-      const stLabel = {{available:'Ledig', on_hold:'Preliminär', booked:'Bokad'}};
-
-      // Bygg prisrader
-      let priceRows = '';
-      const progs = [
-        {{key:'sailing', label:'Sailing',         val1: w.price, val2: w.sail2}},
-        {{key:'faw',     label:'FAW',             val1: w.fatw1, val2: w.fatw2}},
-        {{key:'ho',      label:'Healthy Options', val1: w.ho1,   val2: w.ho2}},
-      ];
-      progs.forEach(p => {{
-        const base = duration===1 ? p.val1 : p.val2;
-        if (!base) return;
-        const total = base + tillagg;
-        const isSel = p.key === program;
-        priceRows += `<div class="room-price-row">
-          <span class="room-price-label">${{p.label}} ${{duration}}v + tillägg</span>
-          <span class="room-price-val${{isSel?' selected':''}}">${{total.toLocaleString('sv-SE')}} kr</span>
-        </div>`;
-      }});
-      if (info.tillagg && info.tillagg !== '0 kr') {{
-        priceRows += `<div class="room-price-row" style="border-top:1px solid #ddd;margin-top:4px;padding-top:4px;">
-          <span class="room-price-label">varav rumstillägg</span>
-          <span class="room-price-val">${{info.tillagg}}</span>
-        </div>`;
-      }}
-
-      const subject = encodeURIComponent(`Bokningsförfrågan: ${{name}} vecka ${{w.display}}`);
-      html += `<div class="room-card ${{st !== 'available' ? st : ''}}">
-        <div class="room-card-top">
-          <div class="room-dot ${{st}}"></div>
-          <div class="room-card-name">${{name}}</div>
-          <div class="room-card-status status-${{st}}">${{stLabel[st]}}</div>
-        </div>
-        ${{info.info ? `<div class="room-card-info">${{info.info}}</div>` : ''}}
-        <div class="room-card-prices">${{priceRows}}</div>
-        ${{st==='available' ? `<a href="mailto:pia@wildwind.se?subject=${{subject}}" class="room-card-cta">✉ Boka ${{name}}</a>` : ''}}
-      </div>`;
-    }});
-  }});
-
-  if (totalShown === 0) {{
-    html = `<div class="empty-state"><h3>Inga lediga rum</h3><p>Alla rum är bokade denna vecka. Välj en annan vecka!</p></div>`;
-  }}
-  grid.innerHTML = html;
-}}
-
-function render() {{
+function shift(d) {
+  tabOff = Math.max(0, Math.min(WEEKS.length - TABS(), tabOff + d));
   renderTabs();
-  renderBanner();
-  renderRooms();
-}}
+}
 
+function renderTabs() {
+  const c = document.getElementById('wtabs'); c.innerHTML = '';
+  const end = Math.min(WEEKS.length, tabOff + TABS());
+  for (let i = tabOff; i < end; i++) {
+    const w = WEEKS[i];
+    const d = document.createElement('div');
+    d.className = 'wtab' + (i===cw?' active':'');
+    d.innerHTML = `<span class="wdate">${w.display}</span><span class="wavail">${countFree(i)} lediga</span>`;
+    d.onclick = () => { cw=i; renderTabs(); renderBanner(); renderRooms(); };
+    c.appendChild(d);
+  }
+  document.getElementById('navP').disabled = tabOff === 0;
+  document.getElementById('navN').disabled = tabOff + TABS() >= WEEKS.length;
+}
+
+function renderBanner() {
+  const w = WEEKS[cw];
+  const ed = new Date(w.date); ed.setDate(ed.getDate()+7);
+  const edl = ed.toLocaleDateString('sv-SE',{day:'numeric',month:'short'});
+  const chips = [
+    {k:'sail1',l:'Sailing 1v', v:w.sail1},
+    {k:'sail2',l:'Sailing 2v', v:w.sail2},
+    {k:'faw1', l:'FAW 1v',     v:w.faw1},
+    {k:'faw2', l:'FAW 2v',     v:w.faw2},
+    {k:'ho1',  l:'HO 1v',      v:w.ho1},
+    {k:'ho2',  l:'HO 2v',      v:w.ho2},
+  ];
+  let h = `<div class="pbanner-date">${w.display} – ${edl}</div><div class="pchips">`;
+  chips.forEach(c => {
+    if (!c.v) { h += `<div class="pchip na">${c.l} –</div>`; return; }
+    const a = c.k===prog ? ' active' : '';
+    h += `<div class="pchip${a}" onclick="setProg('${c.k}')">${c.l}: ${c.v.toLocaleString('sv-SE')} kr</div>`;
+  });
+  if (w.single) h += `<div class="pchip" style="opacity:.6">Enkelrum +${w.single.toLocaleString('sv-SE')} kr</div>`;
+  h += '</div>';
+  document.getElementById('pbanner').innerHTML = h;
+}
+
+function setProg(p) {
+  prog = p;
+  document.querySelectorAll('.pbtn').forEach(b => {
+    b.classList.toggle('active', b.dataset.prog===p);
+  });
+  render();
+}
+
+function renderRooms() {
+  const showAll = document.getElementById('showSel').value === 'all';
+  const w = WEEKS[cw];
+  const base = getVal(w, prog);
+  const stL = {available:'Ledig', on_hold:'Preliminär', booked:'Bokad'};
+  let html = '', shown = 0;
+
+  SECTIONS.forEach(sec => {
+    const sr = sec.rooms.filter(name => {
+      const r = ROOMS.find(x => x.name===name); if (!r) return false;
+      return showAll || r.weeks[cw]==='available' || r.weeks[cw]==='on_hold';
+    });
+    if (!sr.length) return;
+    shown += sr.length;
+    html += `<div class="hsec">${sec.label}</div>`;
+    sr.forEach(name => {
+      const r = ROOMS.find(x => x.name===name); if (!r) return;
+      const st = r.weeks[cw] || 'available';
+      const info = ROOM_INFO[name] || {};
+      const til = info.t || 0;
+      const total = base ? base + til : null;
+      const subj = encodeURIComponent(`Bokningsförfrågan: ${name} vecka ${w.display}`);
+
+      let prows = '';
+      [['sail1','Sailing 1v',w.sail1],['sail2','Sailing 2v',w.sail2],
+       ['faw1','FAW 1v',w.faw1],['faw2','FAW 2v',w.faw2],
+       ['ho1','HO 1v',w.ho1],['ho2','HO 2v',w.ho2]
+      ].forEach(([k,l,v]) => {
+        if (!v) return;
+        const t = v + til;
+        prows += `<div class="rprow"><span class="rplabel">${l}${til?' + tillägg':''}</span><span class="rpval${k===prog?' sel':''}">${t.toLocaleString('sv-SE')} kr</span></div>`;
+      });
+      if (til) prows += `<div class="rprow" style="border-top:1px solid #ddd;margin-top:3px;padding-top:3px;"><span class="rplabel">varav rumstillägg</span><span class="rpval">${til.toLocaleString('sv-SE')} kr</span></div>`;
+
+      html += `<div class="rcard ${st!=='available'?st:''}">
+        <div class="rtop">
+          <div class="rdot ${st}"></div>
+          <div class="rname">${name}</div>
+          <div class="rstatus s${st[0]}">${stL[st]}</div>
+        </div>
+        ${info.sängar?`<div class="rinfo">${info.sängar} · ${info.info||''}</div>`:''}
+        <div class="rprices">${prows}</div>
+        ${st==='available'?`<a href="mailto:pia@wildwind.se?subject=${subj}" class="rcta">✉ Boka ${name}</a>`:''}
+      </div>`;
+    });
+  });
+
+  document.getElementById('rgrid').innerHTML = shown
+    ? html
+    : `<div class="empty"><h3>Inga lediga rum denna vecka</h3><p>Välj en annan vecka ovan.</p></div>`;
+}
+
+function render() { renderTabs(); renderBanner(); renderRooms(); }
 render();
 </script>
 </body>
 </html>'''
+    html = html.replace('PLACEHOLDER_DJS', djs)
+    return html
 
-# ─── MAIN ─────────────────────────────────────────────────────────────
+# ── Main ──────────────────────────────────────────────────────────────
 def main():
-    print("🚀 Wildwind Availability Updater")
-    print("="*40)
+    print("🚀 Wildwind Availability Updater"); print("="*40)
     try:
-        excel = download_excel()
-        data  = parse_availability(excel)
-        html  = generate_html(data)
-        Path(OUTPUT_FILE).write_text(html, encoding='utf-8')
-        print(f"✅ Genererade {OUTPUT_FILE}")
+        data = parse_availability(download_excel())
+        Path(OUTPUT_FILE).write_text(generate_html(data), encoding='utf-8')
+        print(f"✅ {OUTPUT_FILE}")
         Path("temp_availability.xlsx").unlink(missing_ok=True)
         print("🎉 Klar!")
     except Exception as e:
-        print(f"❌ Fel: {e}")
-        raise
+        print(f"❌ {e}"); raise
 
 if __name__ == "__main__":
     main()

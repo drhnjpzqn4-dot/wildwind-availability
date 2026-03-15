@@ -4,6 +4,7 @@ Wildwind Room Availability Updater
 Downloads Excel from Dropbox and generates availability.html (NOT index.html)
 """
 
+import re
 import pandas as pd
 import json
 import requests
@@ -55,41 +56,71 @@ def download_excel():
     return tmp
 
 # ─── PARSE ────────────────────────────────────────────────────────────
+import re
+
+ROOM_PATTERN = re.compile(
+    r'\b(NM\d+|MN\d+|[MK]\d+[AB/]*|[AX]\d+[A-Z]*|COSMOS[- ]?II?)\b',
+    re.IGNORECASE
+)
+
 def parse_availability(excel_path):
     df = pd.read_excel(excel_path, header=None, engine="openpyxl")
 
-    # Hitta rubrikrad (innehåller datum-celler i rad 0 eller 1)
-    # Kolumner: rad = rum, kolumn = vecka (lördag)
-    # Hämta rad 0 som datum-headers
-    header_row = df.iloc[0]
-
+    # ── Hitta alla kolumner med lördagsdatum ──
     weeks = []
-    for col_idx, val in enumerate(header_row):
-        if isinstance(val, (date, datetime)):
-            dt = val if isinstance(val, date) else val.date()
-            weeks.append({"col": col_idx, "date": dt})
+    for row_idx in range(min(5, len(df))):          # kolla de 5 första raderna
+        for col_idx, val in enumerate(df.iloc[row_idx]):
+            if isinstance(val, (date, datetime)):
+                dt = val.date() if isinstance(val, datetime) else val
+                if dt.weekday() == 5:               # 5 = lördag
+                    # undvik dubletter
+                    if not any(w["col"] == col_idx for w in weeks):
+                        weeks.append({"col": col_idx, "date": dt})
+        if weeks:
+            break   # hittade lördagar i denna rad, gå vidare
 
+    # Sortera kronologiskt
+    weeks.sort(key=lambda w: w["date"])
+
+    # ── Hämta rum ──
     rooms = []
     for row_idx in ALLOWED_ROWS:
         if row_idx >= len(df):
             continue
         row = df.iloc[row_idx]
 
-        # Rum-namn finns normalt i kolumn 0 eller 1
-        room_name = str(row.iloc[0]).strip() if pd.notna(row.iloc[0]) else ""
-        if not room_name or room_name.lower() in ("nan", ""):
-            room_name = str(row.iloc[1]).strip() if pd.notna(row.iloc[1]) else f"Rad {row_idx}"
+        # Leta efter rumsnummer (t.ex. M1, K14, A7, NM208) i de första 5 kolumnerna
+        room_name = None
+        for col_idx in range(min(5, len(row))):
+            val = row.iloc[col_idx]
+            if pd.isna(val):
+                continue
+            match = ROOM_PATTERN.search(str(val))
+            if match:
+                room_name = match.group(0).upper()
+                break
 
+        if not room_name:
+            # Fallback: använd första icke-tomma cell
+            for col_idx in range(min(5, len(row))):
+                val = row.iloc[col_idx]
+                if pd.notna(val) and str(val).strip() not in ("", "nan"):
+                    room_name = str(val).strip()
+                    break
+            if not room_name:
+                room_name = f"Rad {row_idx}"
+
+        # ── Status per vecka ──
         week_status = []
         for wk in weeks:
             cell_val = row.iloc[wk["col"]] if wk["col"] < len(row) else None
-            if pd.isna(cell_val) or cell_val == "" or cell_val is None:
+            if cell_val is None or (isinstance(cell_val, float) and pd.isna(cell_val)):
                 status = "available"
             else:
                 val_str = str(cell_val).strip().lower()
                 if val_str in ("", "nan"):
                     status = "available"
-                elif "hold" in val_str or "option" in val_str or "prel" in val_str:
+                elif any(k in val_str for k in ("hold", "option", "prel", "~")):
                     status = "on_hold"
                 else:
                     status = "booked"

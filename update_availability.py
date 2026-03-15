@@ -50,6 +50,45 @@ def download_excel():
     return tmp
 
 # ─── PARSE ────────────────────────────────────────────────────────────
+# Exakt mappning: Excel-rad (1-indexerad) → rumnamn, i rätt visningsordning
+ROW_TO_ROOM = {
+    # Melas
+    44:  "M1",
+    48:  "M2A/B",
+    52:  "M3",
+    56:  "M4",
+    60:  "M7A/B",
+    # M8 – justera om fel rad
+    # Kavadias
+    140: "K2",
+    144: "K3",
+    148: "K4",
+    168: "K14",
+    184: "K15",
+    188: "K18",
+    192: "K19",
+    # AKTI
+    204: "A4",
+    208: "A5",
+    220: "A7",
+    224: "A8",
+    244: "A9",
+    # Xristina
+    248: "X1",
+    256: "X6",
+    # New Melas
+    264: "NM208",
+}
+
+# Visningsordning per hotell
+ROOM_ORDER = [
+    "M1","M2A/B","M3","M4","M7A/B","M8",
+    "K2","K3","K4","K14","K15","K18","K19",
+    "A4","A5","A9","A7","A8",
+    "X1","X6",
+    "NM208",
+]
+
 def parse_availability(excel_path):
     print("📊 Läser tillgänglighet...")
     df = pd.read_excel(excel_path, header=None)
@@ -71,47 +110,49 @@ def parse_availability(excel_path):
 
     print(f"   Hittade {len(saturdays)} lördagar")
 
-    # ── Hämta rum ──
-    rooms = []
-    for row in ALLOWED_ROWS:
+    # ── Hämta rum med korrekt namn ──
+    rooms_dict = {}
+    for row, room_name in ROW_TO_ROOM.items():
         r_idx = row - 1   # 0-indexerat
         if r_idx >= len(df):
+            print(f"   ⚠️ Rad {row} finns inte i filen")
             continue
 
-        # Kolumn 0 = hotellnamn, kolumn 1 = rumsnummer
-        building = str(df.iloc[r_idx, 0]).strip() if pd.notna(df.iloc[r_idx, 0]) else ""
-        room_num = str(df.iloc[r_idx, 1]).strip() if pd.notna(df.iloc[r_idx, 1]) else ""
-
-        building = re.sub(r'\s+', ' ', building).replace("nan", "").strip()
-        room_num = re.sub(r'\s+', ' ', room_num).replace("nan", "").strip()
-
-        # Använd rumsnummer om det finns, annars hotellnamn
-        room_name = room_num if room_num and room_num.lower() != "nan" else building
-        if not room_name:
-            room_name = f"Rad {row}"
-
-        # ── Status per vecka (kolla alla 7 dagar) ──
+        # ── Status per vecka ──
+        # Bokningar ligger på r_idx, on-hold på r_idx+1 (raden nedanför)
         week_status = []
         for sat in saturdays:
-            sat_col     = sat['col']
-            booked      = False
-            on_hold     = False
+            sat_col  = sat['col']
+            booked   = False
+            on_hold  = False
 
             for day_offset in range(7):
                 col = sat_col + (day_offset * 2)
                 if col >= len(df.columns):
                     break
+
+                # Huvudrad = bokning
                 cell_val = df.iloc[r_idx, col]
                 if pd.notna(cell_val) and str(cell_val).strip() not in ("", "nan"):
-                    val_str = str(cell_val).strip().lower()
-                    if any(k in val_str for k in ("hold", "option", "prel")):
-                        on_hold = True
-                    else:
-                        booked = True
+                    booked = True
+
+                # Raden nedanför = on hold
+                if r_idx + 1 < len(df):
+                    hold_val = df.iloc[r_idx + 1, col]
+                    if pd.notna(hold_val) and str(hold_val).strip() not in ("", "nan"):
+                        val_str = str(hold_val).strip().lower()
+                        if any(k in val_str for k in ("hold", "option", "prel")):
+                            on_hold = True
 
             week_status.append("booked" if booked else "on_hold" if on_hold else "available")
 
-        rooms.append({"name": room_name, "weeks": week_status})
+        rooms_dict[room_name] = {"name": room_name, "weeks": week_status}
+
+    # ── Sortera efter ROOM_ORDER ──
+    rooms = []
+    for name in ROOM_ORDER:
+        if name in rooms_dict:
+            rooms.append(rooms_dict[name])
 
     print(f"   Hittade {len(rooms)} rum")
     return {"weeks": saturdays, "rooms": rooms}

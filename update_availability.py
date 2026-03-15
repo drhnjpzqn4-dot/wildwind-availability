@@ -223,7 +223,10 @@ tr:nth-child(even) td:first-child {{ background: #faf6ee; }}
 <body>
 <header>
   <h1>Wildwind – Rumstillgänglighet 2026</h1>
-  <span class="updated">Uppdaterad: <span id="upd"></span></span>
+  <div style="display:flex;align-items:center;gap:16px;">
+    <span class="updated">Uppdaterad: <span id="upd"></span></span>
+    <button onclick="location.reload(true)" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:7px 16px;border-radius:20px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:600;transition:background .2s;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">↺ Uppdatera</button>
+  </div>
 </header>
 
 <div class="legend">

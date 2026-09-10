@@ -462,6 +462,15 @@ def main():
         data = parse_availability(download_excel())
         Path(OUTPUT_FILE).write_text(generate_html(data), encoding='utf-8')
         print(f"Genererade {OUTPUT_FILE}")
+        # Samma data som JSON, sa bokningsraknaren kan filtrera rum per vecka
+        Path("availability.json").write_text(json.dumps({
+            "updated": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "weeks": data["weeks"],
+            "rooms": data["rooms"],
+            "room_info": ROOM_INFO,
+            "sections": SECTIONS,
+        }, ensure_ascii=False), encoding='utf-8')
+        print("Genererade availability.json")
         Path("temp_availability.xlsx").unlink(missing_ok=True)
         print("Klar!")
     except Exception as e:

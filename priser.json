@@ -1,0 +1,508 @@
+{
+ "sasong": 2026,
+ "OBS": "2026 års priser — platshållare tills 2027 publiceras. Byt bara siffrorna här.",
+ "kalla": "ALL_PRICES i update_availability.py — samma prislista som wildwind.seafari.se visar",
+ "forsakring": 350,
+ "transfer_per_person_enkel": 1190,
+ "clubvass_avdrag_per_person_vecka": 3160,
+ "handpenning_per_person": 1500,
+ "veckor": [
+  {
+   "label": "25 Apr",
+   "date": "2026-04-25",
+   "v": 17,
+   "S01": 8990,
+   "S02": 14110,
+   "F01": null,
+   "F02": null,
+   "H01": 7570,
+   "H02": 10840,
+   "E": 1910
+  },
+  {
+   "label": "2 May",
+   "date": "2026-05-02",
+   "v": 18,
+   "S01": 9430,
+   "S02": 14440,
+   "F01": null,
+   "F02": null,
+   "H01": 7900,
+   "H02": 13020,
+   "E": 2130
+  },
+  {
+   "label": "9 May",
+   "date": "2026-05-09",
+   "v": 19,
+   "S01": 10300,
+   "S02": 16290,
+   "F01": null,
+   "F02": null,
+   "H01": 8120,
+   "H02": 13350,
+   "E": 2180
+  },
+  {
+   "label": "16 May",
+   "date": "2026-05-16",
+   "v": 20,
+   "S01": 10840,
+   "S02": 17380,
+   "F01": 14000,
+   "F02": 23690,
+   "H01": 8230,
+   "H02": 13350,
+   "E": 2400
+  },
+  {
+   "label": "23 May",
+   "date": "2026-05-23",
+   "v": 21,
+   "S01": 10840,
+   "S02": 18470,
+   "F01": 14000,
+   "F02": 24780,
+   "H01": 7570,
+   "H02": 14110,
+   "E": 2400
+  },
+  {
+   "label": "30 May",
+   "date": "2026-05-30",
+   "v": 22,
+   "S01": 11930,
+   "S02": 19340,
+   "F01": 15090,
+   "F02": 25660,
+   "H01": 8660,
+   "H02": 14440,
+   "E": 2670
+  },
+  {
+   "label": "6 Jun",
+   "date": "2026-06-06",
+   "v": 23,
+   "S01": 12690,
+   "S02": 19560,
+   "F01": 15850,
+   "F02": 25870,
+   "H01": 9540,
+   "H02": 14650,
+   "E": 2780
+  },
+  {
+   "label": "13 Jun",
+   "date": "2026-06-13",
+   "v": 24,
+   "S01": 13020,
+   "S02": 20650,
+   "F01": 16180,
+   "F02": 26960,
+   "H01": 9750,
+   "H02": 15200,
+   "E": 2950
+  },
+  {
+   "label": "20 Jun",
+   "date": "2026-06-20",
+   "v": 25,
+   "S01": 13890,
+   "S02": 22610,
+   "F01": 17050,
+   "F02": 28920,
+   "H01": 11380,
+   "H02": 16290,
+   "E": 3050
+  },
+  {
+   "label": "27 Jun",
+   "date": "2026-06-27",
+   "v": 26,
+   "S01": 14110,
+   "S02": 22820,
+   "F01": 17270,
+   "F02": 29140,
+   "H01": 11930,
+   "H02": 17380,
+   "E": 3160
+  },
+  {
+   "label": "4 Jul",
+   "date": "2026-07-04",
+   "v": 27,
+   "S01": 14440,
+   "S02": 22820,
+   "F01": 17600,
+   "F02": 29140,
+   "H01": 12260,
+   "H02": 17380,
+   "E": 3160
+  },
+  {
+   "label": "11 Jul",
+   "date": "2026-07-11",
+   "v": 28,
+   "S01": 14980,
+   "S02": 23690,
+   "F01": 18140,
+   "F02": 30010,
+   "H01": 12260,
+   "H02": 17380,
+   "E": 3160
+  },
+  {
+   "label": "18 Jul",
+   "date": "2026-07-18",
+   "v": 29,
+   "S01": 15200,
+   "S02": 23910,
+   "F01": 18360,
+   "F02": 30230,
+   "H01": 12260,
+   "H02": 17380,
+   "E": 3160
+  },
+  {
+   "label": "25 Jul",
+   "date": "2026-07-25",
+   "v": 30,
+   "S01": 15200,
+   "S02": 23910,
+   "F01": 18360,
+   "F02": 30230,
+   "H01": 12260,
+   "H02": 17380,
+   "E": 3160
+  },
+  {
+   "label": "1 Aug",
+   "date": "2026-08-01",
+   "v": 31,
+   "S01": 15200,
+   "S02": 23910,
+   "F01": 18360,
+   "F02": 30230,
+   "H01": 12260,
+   "H02": 17380,
+   "E": 3160
+  },
+  {
+   "label": "8 Aug",
+   "date": "2026-08-08",
+   "v": 32,
+   "S01": 15200,
+   "S02": 23910,
+   "F01": 18360,
+   "F02": 30230,
+   "H01": 12260,
+   "H02": 17380,
+   "E": 3160
+  },
+  {
+   "label": "15 Aug",
+   "date": "2026-08-15",
+   "v": 33,
+   "S01": 14110,
+   "S02": 21730,
+   "F01": 17270,
+   "F02": 28050,
+   "H01": 12260,
+   "H02": 17380,
+   "E": 3160
+  },
+  {
+   "label": "22 Aug",
+   "date": "2026-08-22",
+   "v": 34,
+   "S01": 12800,
+   "S02": 19880,
+   "F01": 15960,
+   "F02": 26200,
+   "H01": 11930,
+   "H02": 16290,
+   "E": 2730
+  },
+  {
+   "label": "29 Aug",
+   "date": "2026-08-29",
+   "v": 35,
+   "S01": 11930,
+   "S02": 18470,
+   "F01": 15090,
+   "F02": 24780,
+   "H01": 9750,
+   "H02": 15200,
+   "E": 2460
+  },
+  {
+   "label": "5 Sep",
+   "date": "2026-09-05",
+   "v": 36,
+   "S01": 11710,
+   "S02": 17380,
+   "F01": 14870,
+   "F02": 23690,
+   "H01": 9210,
+   "H02": 14110,
+   "E": 2400
+  },
+  {
+   "label": "12 Sep",
+   "date": "2026-09-12",
+   "v": 37,
+   "S01": 11170,
+   "S02": 16290,
+   "F01": 14330,
+   "F02": 22610,
+   "H01": 8990,
+   "H02": 13890,
+   "E": 2130
+  },
+  {
+   "label": "19 Sep",
+   "date": "2026-09-19",
+   "v": 38,
+   "S01": 10300,
+   "S02": 15200,
+   "F01": 13460,
+   "F02": null,
+   "H01": 8660,
+   "H02": 12260,
+   "E": 2070
+  },
+  {
+   "label": "26 Sep",
+   "date": "2026-09-26",
+   "v": 39,
+   "S01": 9540,
+   "S02": 13570,
+   "F01": null,
+   "F02": null,
+   "H01": 7570,
+   "H02": 11380,
+   "E": 1910
+  },
+  {
+   "label": "3 Oct",
+   "date": "2026-10-03",
+   "v": 40,
+   "S01": 8990,
+   "S02": 13020,
+   "F01": null,
+   "F02": null,
+   "H01": 7360,
+   "H02": null,
+   "E": 1910
+  }
+ ],
+ "rum": [
+  {
+   "name": "Melas 1",
+   "t": 0,
+   "desc": "Twin · Sidoutsikt Kav Bar"
+  },
+  {
+   "name": "Melas 2AB",
+   "t": 0,
+   "desc": "Double+Twin · Familjerum · Havsutsikt"
+  },
+  {
+   "name": "Melas 3",
+   "t": 1758,
+   "desc": "Double · Full havsutsikt"
+  },
+  {
+   "name": "Melas 4",
+   "t": 1758,
+   "desc": "Twin · Full havsutsikt"
+  },
+  {
+   "name": "Melas 8",
+   "t": 0,
+   "desc": "Twin · Utsikt mot Ponti"
+  },
+  {
+   "name": "Kav 2",
+   "t": 0,
+   "desc": "Twin · Mot berg norrut"
+  },
+  {
+   "name": "Kav 3",
+   "t": 0,
+   "desc": "Twin · Mot berg norrut"
+  },
+  {
+   "name": "Kav 4",
+   "t": 0,
+   "desc": "Double · Mot gräsmattan"
+  },
+  {
+   "name": "Kav 9",
+   "t": 0,
+   "desc": "Double · Mot poolen"
+  },
+  {
+   "name": "Kav 13",
+   "t": 1320,
+   "desc": "Twin · Övervåning"
+  },
+  {
+   "name": "Kav 14",
+   "t": 1320,
+   "desc": "Double · Mot poolen · Övervåning"
+  },
+  {
+   "name": "Kav 15",
+   "t": 1320,
+   "desc": "Double · Mot poolen · Övervåning"
+  },
+  {
+   "name": "Kav 18",
+   "t": 1320,
+   "desc": "Twin · Havsutsikt · Övervåning"
+  },
+  {
+   "name": "Kav 19",
+   "t": 1320,
+   "desc": "Twin · Mot byn · Övervåning"
+  },
+  {
+   "name": "Akti 4",
+   "t": 1320,
+   "desc": "Studio · Pentry · Övervåning"
+  },
+  {
+   "name": "Akti 5",
+   "t": 1320,
+   "desc": "Studio · Pentry · Övervåning"
+  },
+  {
+   "name": "Akti 7",
+   "t": 1758,
+   "desc": "2-sovrum · Fullt kök · Min 4 pers"
+  },
+  {
+   "name": "Akti 8",
+   "t": 1758,
+   "desc": "2-sovrum · Fullt kök · Min 4 pers"
+  },
+  {
+   "name": "Akti 9",
+   "t": 1758,
+   "desc": "1-sovrum · Pentry"
+  },
+  {
+   "name": "Xristina 2",
+   "t": 1320,
+   "desc": "Studio · Havsutsikt på avstånd"
+  },
+  {
+   "name": "Xristina 4",
+   "t": 1320,
+   "desc": "Studio · Trädgårdsvy norrut"
+  },
+  {
+   "name": "Xristina 6",
+   "t": 1758,
+   "desc": "1-sovrum · 13 jul–15 sep"
+  },
+  {
+   "name": "X Bungalow",
+   "t": 1320,
+   "desc": "Eget hus · Mot bergen"
+  },
+  {
+   "name": "NM208",
+   "t": 2638,
+   "desc": "Double · Bergutsikt · New Melas"
+  }
+ ],
+ "sektioner": [
+  {
+   "label": "Melas Hotel",
+   "rooms": [
+    "Melas 1",
+    "Melas 2AB",
+    "Melas 3",
+    "Melas 4",
+    "Melas 8"
+   ]
+  },
+  {
+   "label": "Kavadias Hotel",
+   "rooms": [
+    "Kav 2",
+    "Kav 3",
+    "Kav 4",
+    "Kav 9",
+    "Kav 13",
+    "Kav 14",
+    "Kav 15",
+    "Kav 18",
+    "Kav 19"
+   ]
+  },
+  {
+   "label": "AKTI Apartments",
+   "rooms": [
+    "Akti 4",
+    "Akti 5",
+    "Akti 7",
+    "Akti 8",
+    "Akti 9"
+   ]
+  },
+  {
+   "label": "Xristina Apartments",
+   "rooms": [
+    "Xristina 2",
+    "Xristina 4",
+    "Xristina 6",
+    "X Bungalow"
+   ]
+  },
+  {
+   "label": "New Melas",
+   "rooms": [
+    "NM208"
+   ]
+  }
+ ],
+ "kurs_sek_per_eur": 10.897,
+ "transfer": {
+  "_kommentar": "Kundpriset ar Wildwinds eget listpris i EUR gange samma kurs som WW anvander nar de satter Pias priser (kurs_sek_per_eur). Ingen pastalagg, ingen provision. Fordonet foljer sallskapets storlek.",
+  "trappa": [
+   {
+    "id": "taxi",
+    "namn": "Taxi",
+    "min": 1,
+    "max": 3,
+    "ww_eur_enkel": 105
+   },
+   {
+    "id": "van",
+    "namn": "Minivan",
+    "min": 4,
+    "max": 7,
+    "ww_eur_enkel": 160
+   }
+  ],
+  "max_personer_via_sajten": 7,
+  "ww_listpris_ovrigt_kontakta_pia": [
+   {
+    "namn": "Minibuss (19 platser)",
+    "ww_eur_enkel": 200
+   },
+   {
+    "namn": "Stor buss",
+    "ww_eur_enkel": 300,
+    "ww_eur_tur_retur": 420
+   },
+   {
+    "namn": "Taxi Vassiliki-Lefkada",
+    "ww_eur_enkel": 60
+   }
+  ]
+ }
+}

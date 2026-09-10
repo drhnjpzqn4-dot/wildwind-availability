@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Boka din resa – Wildwind Vassiliki</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@300;400;600;700&family=Cormorant+Garamond:wght@400;600&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --azure:#0B3D72;--azure2:#1A5C9A;--sand:#F5EDD8;--sand2:#E6D5BA;
+  --green:#2E8B57;--gold:#C9963A;
+  --white:#FDFAF5;--text:#2A2A2A;--mid:#666;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Nunito Sans',sans-serif;background:var(--white);color:var(--text);font-size:14px;line-height:1.55;}
+header{background:var(--azure);color:#fff;padding:22px 20px;}
+header h1{font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:400;letter-spacing:.2px;}
+header p{font-size:13px;opacity:.85;margin-top:4px;}
+.tillbaka{display:inline-block;color:#fff;opacity:.8;text-decoration:none;font-size:12px;font-weight:600;margin-bottom:10px;}
+.tillbaka:hover{opacity:1;}
+.wrap{max-width:1080px;margin:0 auto;padding:24px 20px 60px;display:grid;grid-template-columns:1fr 360px;gap:28px;align-items:start;}
+@media(max-width:880px){.wrap{grid-template-columns:1fr;}}
+.card{background:#fff;border:1px solid var(--sand2);border-radius:14px;padding:20px;margin-bottom:18px;}
+h2{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:var(--azure);margin-bottom:4px;}
+.hint{font-size:12px;color:var(--mid);margin-bottom:14px;}
+label{display:block;font-size:11px;font-weight:700;color:var(--azure);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;}
+select,input[type=text],input[type=email],input[type=tel],input[type=number],textarea{
+  width:100%;padding:9px 12px;border:1px solid #d5cdb9;border-radius:9px;font-family:inherit;font-size:14px;background:#fff;color:var(--text);}
+select:focus,input:focus,textarea:focus{outline:2px solid var(--azure2);outline-offset:-1px;}
+.row{display:grid;gap:12px;margin-bottom:14px;}
+.r2{grid-template-columns:1fr 1fr;}
+.r3{grid-template-columns:1fr 1fr 1fr;}
+@media(max-width:600px){.r2,.r3{grid-template-columns:1fr;}}
+.seg{display:flex;gap:8px;flex-wrap:wrap;}
+.seg button{flex:1;min-width:110px;padding:9px 10px;border:1px solid #d5cdb9;background:#fff;border-radius:9px;
+  font-family:inherit;font-size:13px;font-weight:600;color:var(--mid);cursor:pointer;}
+.seg button[aria-pressed=true]{background:var(--azure);border-color:var(--azure);color:#fff;}
+.pax{display:grid;grid-template-columns:1fr 132px 96px 34px;gap:8px;align-items:end;margin-bottom:9px;}
+@media(max-width:600px){
+  .pax{grid-template-columns:1fr 96px 40px;align-items:end;}
+  .pax > div:first-child{grid-column:1 / -1;}
+  .pax .del{justify-self:end;width:40px;}
+}
+.pax .del{border:1px solid #e0d6c2;background:#fff;border-radius:9px;height:37px;cursor:pointer;color:#b04a3d;font-size:16px;line-height:1;}
+.addbtn{margin-top:4px;background:var(--sand);border:1px dashed var(--sand2);color:var(--azure);
+  padding:9px 14px;border-radius:9px;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer;}
+.note{background:var(--sand);border-radius:9px;padding:10px 12px;font-size:12px;color:#5a4a2a;margin-top:10px;}
+.side{position:sticky;top:20px;}
+.sum{background:var(--azure);color:#fff;border-radius:14px;padding:20px;}
+.sum h2{color:#fff;}
+.line{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.15);font-size:13px;}
+.line .lbl{opacity:.92;}
+.line .code{display:block;font-size:10px;opacity:.55;letter-spacing:.6px;font-weight:700;}
+.line .amt{white-space:nowrap;font-weight:600;}
+.tot{display:flex;justify-content:space-between;align-items:baseline;margin-top:14px;padding-top:12px;border-top:2px solid rgba(255,255,255,.35);}
+.tot span:first-child{font-size:13px;font-weight:700;letter-spacing:.4px;}
+.tot span:last-child{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:600;}
+.dep{background:rgba(255,255,255,.12);border-radius:9px;padding:11px 13px;margin-top:14px;font-size:12.5px;}
+.dep b{font-size:15px;}
+.warn{background:var(--gold);color:#3a2a08;border-radius:9px;padding:10px 12px;font-size:12px;margin-top:12px;font-weight:600;}
+.send{width:100%;margin-top:16px;padding:14px;border:none;border-radius:40px;background:#fff;color:var(--azure);
+  font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;}
+.send:disabled{opacity:.45;cursor:not-allowed;}
+.foot{font-size:11.5px;color:var(--mid);margin-top:14px;line-height:1.65;}
+.banner{background:var(--gold);color:#3a2a08;padding:9px 20px;font-size:12.5px;font-weight:700;text-align:center;}
+.sum h2{color:#fff;}
+#sammanfattning{white-space:pre-wrap;background:var(--sand);border:1px solid var(--sand2);border-radius:10px;
+  padding:14px;margin-top:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;line-height:1.6;color:#4a3d22;}
+#formWrap{margin-top:18px;border-top:1px solid var(--sand2);padding-top:18px;}
+#sdForm{border:0;display:block;width:100%;}
+.kopierat{background:var(--green)!important;border-color:var(--green)!important;color:#fff!important;}
+.pricebar{display:none;}
+@media(max-width:880px){
+  .pricebar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:50;
+    align-items:center;justify-content:space-between;gap:12px;
+    background:var(--azure);color:#fff;padding:11px 16px;
+    box-shadow:0 -3px 14px rgba(0,0,0,.18);}
+  .pricebar .pb-l{font-size:11px;font-weight:700;letter-spacing:.5px;opacity:.8;text-transform:uppercase;}
+  .pricebar .pb-v{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:600;line-height:1.1;}
+  .pricebar button{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);color:#fff;
+    border-radius:30px;padding:9px 15px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;}
+  body{padding-bottom:74px;}
+  .side{position:static;}
+}
+</style>
+</head>
+<body>
+<div class="banner">Priserna nedan är <b>2026 års priser</b> och visas som vägledning. 2027 års priser och veckor publiceras inom kort — hör av dig så räknar vi fram din offert.</div>
+<header>
+  <a class="tillbaka" href="index.html">← Wildwind Vassiliki</a>
+  <h1>Räkna ut din resa</h1>
+  <p>Wildwind &amp; Healthy Options · Vassiliki, Lefkas · Seafari AB</p>
+</header>
+<div class="pricebar">
+  <div><div class="pb-l">Din resa</div><div class="pb-v" id="pbTotal">0 kr</div></div>
+  <button type="button" id="pbSe">Se detaljer ↓</button>
+</div>
+<div class="wrap">
+<div>
+
+  <div class="card">
+    <h2>1. När vill ni resa?</h2>
+    <p class="hint">Alla resor går lördag till lördag.</p>
+    <div class="row r2">
+      <div><label for="vecka">Avresevecka</label><select id="vecka"></select></div>
+      <div><label>Antal veckor</label>
+        <div class="seg" id="segVeckor">
+          <button type="button" data-v="1" aria-pressed="true">1 vecka</button>
+          <button type="button" data-v="2" aria-pressed="false">2 veckor</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>2. Vilka reser, och vad vill ni göra?</h2>
+    <p class="hint">Lägg till en rad per person. Olika personer i samma sällskap kan välja olika paket.</p>
+    <div id="paxList"></div>
+    <button type="button" class="addbtn" id="addPax">+ Lägg till deltagare</button>
+    <div id="delaRum" style="display:none;margin-top:16px">
+      <label>Du reser ensam — kan du tänka dig att dela rum med en annan gäst?</label>
+      <div class="seg" id="segDela">
+        <button type="button" data-d="ja" aria-pressed="true">Ja, gärna</button>
+        <button type="button" data-d="nej" aria-pressed="false">Nej, eget rum</button>
+      </div>
+      <div class="note">Väljer du eget rum tillkommer enkelrumstillägg per vecka.</div>
+    </div>
+    <div class="note" id="barnNote" style="display:none">
+      Barn- och ungdomsrabatt sätts individuellt utifrån ålder och aktivitet — vi räknar fram den och drar av den på din offert.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>3. Boende</h2>
+    <p class="hint">Välj gärna ett önskemål. Rummet bekräftas av oss mot Wildwind innan bokningen blir definitiv.</p>
+    <div><label for="rum">Rumsönskemål</label><select id="rum"></select></div>
+    <div class="note" id="rumInfo">Visar samtliga rum.</div>
+    <div class="note"><b>Summan kan bli högre.</b> Bara ett fåtal rum är utan rumstillägg, och vilket rum som är ledigt vet vi först när vi stämt av mot Wildwind. Väljer du inget önskemål räknar vi tills vidare utan tillägg — men rummet ni får kan ha ett.</div>
+    <div class="note">Rumstillägget gäller <b>hela rummet</b>, inte per person. Tillgängligheten uppdateras dagligen, men rum kan vara preliminärbokade i upp till 48 timmar utan att synas. Vi stämmer alltid av innan vi bekräftar.</div>
+  </div>
+
+  <div class="card">
+    <h2>4. Transfer från Preveza flygplats</h2>
+    <p class="hint">Vi bokar transfern åt er från Preveza (PVK). Vi väljer fordon efter hur många ni är.</p>
+    <div class="row r2">
+      <div><label>Behöver ni transfer?</label>
+        <div class="seg" id="segTransfer">
+          <button type="button" data-t="nej" aria-pressed="true">Nej</button>
+          <button type="button" data-t="tor" aria-pressed="false">Tur &amp; retur</button>
+          <button type="button" data-t="enkel" aria-pressed="false">Enkel</button>
+        </div>
+      </div>
+      <div><label for="tAntal">Antal personer</label><input type="number" id="tAntal" min="0" step="1" value="0"/></div>
+    </div>
+    <div class="row r2" id="transferDetalj" style="display:none">
+      <div><label for="flyg">Flyguppgifter (om ni har dem)</label><input type="text" id="flyg" placeholder="t.ex. TK1847, ank 14:20"/></div>
+      <div></div>
+    </div>
+    <div class="note" id="samNote" style="display:none">
+      <span id="samText"></span>
+    </div>
+    <div class="note">Har ni inte bokat flyg än går det bra — fyll i uppgifterna senare, så bokar vi transfern då.</div>
+  </div>
+
+  <div class="card" id="skickaKort">
+    <h2>5. Skicka in er förfrågan</h2>
+    <p class="hint">Kopiera sammanställningen och klistra in den i formuläret nedan, så har vi allt vi behöver.</p>
+    <button type="button" class="addbtn" id="kopiera" style="width:100%;padding:13px;font-size:14px">📋 Kopiera min resa</button>
+    <pre id="sammanfattning"></pre>
+    <div id="formWrap">
+      <iframe id="sdForm" src="https://travel.seafari.se/frm/uxyBQTFFKXoqgUqt"
+        title="Bokningsförfrågan" width="100%" height="1100" frameborder="0" allowtransparency="true"></iframe>
+    </div>
+  </div>
+
+  <div class="card" style="display:none">
+    <h2>Era uppgifter</h2>
+    <div class="row r2">
+      <div><label for="namn">Namn</label><input type="text" id="namn" autocomplete="name"/></div>
+      <div><label for="epost">E-post</label><input type="email" id="epost" autocomplete="email"/></div>
+    </div>
+    <div class="row r2">
+      <div><label for="tel">Telefon</label><input type="tel" id="tel" autocomplete="tel"/></div>
+      <div><label for="adress">Adress</label><input type="text" id="adress" autocomplete="street-address"/></div>
+    </div>
+    <div><label for="ovrigt">Övriga önskemål</label><textarea id="ovrigt" rows="3" placeholder="Allergier, sällskap ni vill bo nära, tidigare erfarenhet ..."></textarea></div>
+  </div>
+
+</div>
+
+<div class="side">
+  <div class="sum">
+    <h2>Din resa</h2>
+    <div id="lines"></div>
+    <div class="tot"><span>ATT BETALA</span><span id="total">0 kr</span></div>
+    <div class="dep">Bokningen bekräftas med <b id="dep">0 kr</b> i handpenning (1 500 kr/person).<br/>
+      Resterande betalas 60 dagar före avresa.</div>
+    <div class="warn" id="warn" style="display:none"></div>
+    <button class="send" id="send">Skicka bokningsförfrågan ↓</button>
+  </div>
+  <p class="foot">Detta är en förfrågan, inte en bindande bokning. Vi stämmer av rum och tillgänglighet mot Wildwind och återkommer med en offert att godkänna. Flyg ingår inte.</p>
+</div>
+</div>
+
+<script>
+const PRIS = {"sasong": 2026, "OBS": "2026 års priser — platshållare tills 2027 publiceras. Byt bara siffrorna här.", "kalla": "ALL_PRICES i update_availability.py — samma prislista som wildwind.seafari.se visar", "forsakring": 350, "transfer_per_person_enkel": 1190, "clubvass_avdrag_per_person_vecka": 3160, "handpenning_per_person": 1500, "veckor": [{"label": "25 Apr", "date": "2026-04-25", "v": 17, "S01": 8990, "S02": 14110, "F01": null, "F02": null, "H01": 7570, "H02": 10840, "E": 1910}, {"label": "2 May", "date": "2026-05-02", "v": 18, "S01": 9430, "S02": 14440, "F01": null, "F02": null, "H01": 7900, "H02": 13020, "E": 2130}, {"label": "9 May", "date": "2026-05-09", "v": 19, "S01": 10300, "S02": 16290, "F01": null, "F02": null, "H01": 8120, "H02": 13350, "E": 2180}, {"label": "16 May", "date": "2026-05-16", "v": 20, "S01": 10840, "S02": 17380, "F01": 14000, "F02": 23690, "H01": 8230, "H02": 13350, "E": 2400}, {"label": "23 May", "date": "2026-05-23", "v": 21, "S01": 10840, "S02": 18470, "F01": 14000, "F02": 24780, "H01": 7570, "H02": 14110, "E": 2400}, {"label": "30 May", "date": "2026-05-30", "v": 22, "S01": 11930, "S02": 19340, "F01": 15090, "F02": 25660, "H01": 8660, "H02": 14440, "E": 2670}, {"label": "6 Jun", "date": "2026-06-06", "v": 23, "S01": 12690, "S02": 19560, "F01": 15850, "F02": 25870, "H01": 9540, "H02": 14650, "E": 2780}, {"label": "13 Jun", "date": "2026-06-13", "v": 24, "S01": 13020, "S02": 20650, "F01": 16180, "F02": 26960, "H01": 9750, "H02": 15200, "E": 2950}, {"label": "20 Jun", "date": "2026-06-20", "v": 25, "S01": 13890, "S02": 22610, "F01": 17050, "F02": 28920, "H01": 11380, "H02": 16290, "E": 3050}, {"label": "27 Jun", "date": "2026-06-27", "v": 26, "S01": 14110, "S02": 22820, "F01": 17270, "F02": 29140, "H01": 11930, "H02": 17380, "E": 3160}, {"label": "4 Jul", "date": "2026-07-04", "v": 27, "S01": 14440, "S02": 22820, "F01": 17600, "F02": 29140, "H01": 12260, "H02": 17380, "E": 3160}, {"label": "11 Jul", "date": "2026-07-11", "v": 28, "S01": 14980, "S02": 23690, "F01": 18140, "F02": 30010, "H01": 12260, "H02": 17380, "E": 3160}, {"label": "18 Jul", "date": "2026-07-18", "v": 29, "S01": 15200, "S02": 23910, "F01": 18360, "F02": 30230, "H01": 12260, "H02": 17380, "E": 3160}, {"label": "25 Jul", "date": "2026-07-25", "v": 30, "S01": 15200, "S02": 23910, "F01": 18360, "F02": 30230, "H01": 12260, "H02": 17380, "E": 3160}, {"label": "1 Aug", "date": "2026-08-01", "v": 31, "S01": 15200, "S02": 23910, "F01": 18360, "F02": 30230, "H01": 12260, "H02": 17380, "E": 3160}, {"label": "8 Aug", "date": "2026-08-08", "v": 32, "S01": 15200, "S02": 23910, "F01": 18360, "F02": 30230, "H01": 12260, "H02": 17380, "E": 3160}, {"label": "15 Aug", "date": "2026-08-15", "v": 33, "S01": 14110, "S02": 21730, "F01": 17270, "F02": 28050, "H01": 12260, "H02": 17380, "E": 3160}, {"label": "22 Aug", "date": "2026-08-22", "v": 34, "S01": 12800, "S02": 19880, "F01": 15960, "F02": 26200, "H01": 11930, "H02": 16290, "E": 2730}, {"label": "29 Aug", "date": "2026-08-29", "v": 35, "S01": 11930, "S02": 18470, "F01": 15090, "F02": 24780, "H01": 9750, "H02": 15200, "E": 2460}, {"label": "5 Sep", "date": "2026-09-05", "v": 36, "S01": 11710, "S02": 17380, "F01": 14870, "F02": 23690, "H01": 9210, "H02": 14110, "E": 2400}, {"label": "12 Sep", "date": "2026-09-12", "v": 37, "S01": 11170, "S02": 16290, "F01": 14330, "F02": 22610, "H01": 8990, "H02": 13890, "E": 2130}, {"label": "19 Sep", "date": "2026-09-19", "v": 38, "S01": 10300, "S02": 15200, "F01": 13460, "F02": null, "H01": 8660, "H02": 12260, "E": 2070}, {"label": "26 Sep", "date": "2026-09-26", "v": 39, "S01": 9540, "S02": 13570, "F01": null, "F02": null, "H01": 7570, "H02": 11380, "E": 1910}, {"label": "3 Oct", "date": "2026-10-03", "v": 40, "S01": 8990, "S02": 13020, "F01": null, "F02": null, "H01": 7360, "H02": null, "E": 1910}], "rum": [{"name": "Melas 1", "t": 0, "desc": "Twin · Sidoutsikt Kav Bar"}, {"name": "Melas 2AB", "t": 0, "desc": "Double+Twin · Familjerum · Havsutsikt"}, {"name": "Melas 3", "t": 1758, "desc": "Double · Full havsutsikt"}, {"name": "Melas 4", "t": 1758, "desc": "Twin · Full havsutsikt"}, {"name": "Melas 8", "t": 0, "desc": "Twin · Utsikt mot Ponti"}, {"name": "Kav 2", "t": 0, "desc": "Twin · Mot berg norrut"}, {"name": "Kav 3", "t": 0, "desc": "Twin · Mot berg norrut"}, {"name": "Kav 4", "t": 0, "desc": "Double · Mot gräsmattan"}, {"name": "Kav 9", "t": 0, "desc": "Double · Mot poolen"}, {"name": "Kav 13", "t": 1320, "desc": "Twin · Övervåning"}, {"name": "Kav 14", "t": 1320, "desc": "Double · Mot poolen · Övervåning"}, {"name": "Kav 15", "t": 1320, "desc": "Double · Mot poolen · Övervåning"}, {"name": "Kav 18", "t": 1320, "desc": "Twin · Havsutsikt · Övervåning"}, {"name": "Kav 19", "t": 1320, "desc": "Twin · Mot byn · Övervåning"}, {"name": "Akti 4", "t": 1320, "desc": "Studio · Pentry · Övervåning"}, {"name": "Akti 5", "t": 1320, "desc": "Studio · Pentry · Övervåning"}, {"name": "Akti 7", "t": 1758, "desc": "2-sovrum · Fullt kök · Min 4 pers"}, {"name": "Akti 8", "t": 1758, "desc": "2-sovrum · Fullt kök · Min 4 pers"}, {"name": "Akti 9", "t": 1758, "desc": "1-sovrum · Pentry"}, {"name": "Xristina 2", "t": 1320, "desc": "Studio · Havsutsikt på avstånd"}, {"name": "Xristina 4", "t": 1320, "desc": "Studio · Trädgårdsvy norrut"}, {"name": "Xristina 6", "t": 1758, "desc": "1-sovrum · 13 jul–15 sep"}, {"name": "X Bungalow", "t": 1320, "desc": "Eget hus · Mot bergen"}, {"name": "NM208", "t": 2638, "desc": "Double · Bergutsikt · New Melas"}], "sektioner": [{"label": "Melas Hotel", "rooms": ["Melas 1", "Melas 2AB", "Melas 3", "Melas 4", "Melas 8"]}, {"label": "Kavadias Hotel", "rooms": ["Kav 2", "Kav 3", "Kav 4", "Kav 9", "Kav 13", "Kav 14", "Kav 15", "Kav 18", "Kav 19"]}, {"label": "AKTI Apartments", "rooms": ["Akti 4", "Akti 5", "Akti 7", "Akti 8", "Akti 9"]}, {"label": "Xristina Apartments", "rooms": ["Xristina 2", "Xristina 4", "Xristina 6", "X Bungalow"]}, {"label": "New Melas", "rooms": ["NM208"]}], "kurs_sek_per_eur": 10.897, "transfer": {"_kommentar": "Kundpriset ar Wildwinds eget listpris i EUR gange samma kurs som WW anvander nar de satter Pias priser (kurs_sek_per_eur). Ingen pastalagg, ingen provision. Fordonet foljer sallskapets storlek.", "trappa": [{"id": "taxi", "namn": "Taxi", "min": 1, "max": 3, "ww_eur_enkel": 105}, {"id": "van", "namn": "Minivan", "min": 4, "max": 7, "ww_eur_enkel": 160}], "max_personer_via_sajten": 7, "ww_listpris_ovrigt_kontakta_pia": [{"namn": "Minibuss (19 platser)", "ww_eur_enkel": 200}, {"namn": "Stor buss", "ww_eur_enkel": 300, "ww_eur_tur_retur": 420}, {"namn": "Taxi Vassiliki-Lefkada", "ww_eur_enkel": 60}]}};
+</script>
+<script>
+const PAKET = [
+  {k:'S', namn:'Wildwind segling',        kod:'WWS'},
+  {k:'F', namn:'Free as the wind',        kod:'WWF'},
+  {k:'H', namn:'Healthy Options',         kod:'WWH'},
+  {k:'A', namn:'Adventure',               kod:'WWA'},
+  {k:'N', namn:'No sport',                kod:'WWN'},
+];
+const state = {vecka:0, veckor:1, dela:'ja', transfer:'nej', pax:[]};
+const kr = n => n.toLocaleString('sv-SE') + ' kr';
+const $ = id => document.getElementById(id);
+
+// ---- vecka ----
+PRIS.veckor.forEach((w,i)=>{
+  const o=document.createElement('option');
+  o.value=i; o.textContent=`${w.label} (v.${w.v})`;
+  $('vecka').appendChild(o);
+});
+$('vecka').value = 0;
+$('vecka').onchange = e => { state.vecka = +e.target.value; render(); };
+
+// ---- rum ----
+let AVAIL = null;
+const rumSel = $('rum');
+
+function fyllRum(){
+  const valt = rumSel.value;
+  rumSel.innerHTML = '';
+  rumSel.appendChild(new Option('Inget särskilt önskemål',''));
+
+  let ledigaNamn = null, idx = -1;
+  if(AVAIL){
+    const lbl = PRIS.veckor[state.vecka].label;
+    idx = AVAIL.weeks.findIndex(w => w.display === lbl);
+    if(idx >= 0){
+      ledigaNamn = new Set(
+        AVAIL.rooms.filter(r => r.weeks[idx] === 'available').map(r => r.name));
+    }
+  }
+
+  let antalLediga = 0;
+  PRIS.sektioner.forEach(sec=>{
+    const g = document.createElement('optgroup'); g.label = sec.label;
+    let n = 0;
+    sec.rooms.forEach(nm=>{
+      const r = PRIS.rum.find(x=>x.name===nm); if(!r) return;
+      if(ledigaNamn && !ledigaNamn.has(nm)) return;
+      const till = r.t ? ` · +${r.t.toLocaleString('sv-SE')} kr/v` : ' · utan tillägg';
+      g.appendChild(new Option(`${r.name} — ${r.desc}${till}`, r.name));
+      n++; antalLediga++;
+    });
+    if(n) rumSel.appendChild(g);
+  });
+
+  if([...rumSel.options].some(o=>o.value===valt)) rumSel.value = valt;
+
+  const info = $('rumInfo');
+  if(ledigaNamn){
+    info.innerHTML = antalLediga
+      ? `Visar de <b>${antalLediga} rum som är lediga</b> vecka ${PRIS.veckor[state.vecka].v}. Uppdaterat ${AVAIL.updated}.`
+      : `Inga rum ligger som lediga den veckan just nu — hör av er, ibland lossnar något.`;
+  } else {
+    info.innerHTML = 'Visar samtliga rum. Vi stämmer av tillgängligheten innan vi bekräftar.';
+  }
+}
+rumSel.onchange = render;
+
+fetch('availability.json', {cache:'no-store'})
+  .then(r => r.ok ? r.json() : null)
+  .then(d => { if(d && d.rooms && d.weeks){ AVAIL = d; render(); } })
+  .catch(()=>{});
+
+// ---- segmentknappar ----
+function seg(id, key, cb){
+  $(id).querySelectorAll('button').forEach(b=>{
+    b.onclick=()=>{
+      $(id).querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed','false'));
+      b.setAttribute('aria-pressed','true');
+      state[key] = b.dataset[Object.keys(b.dataset)[0]];
+      if(key==='veckor') state.veckor = +state.veckor;
+      if(cb) cb();
+      render();
+    };
+  });
+}
+seg('segVeckor','veckor');
+seg('segDela','dela');
+seg('segTransfer','transfer');
+
+// ---- deltagare ----
+function paxRow(p, i){
+  const d=document.createElement('div'); d.className='pax';
+  const opts = PAKET.map(x=>`<option value="${x.k}"${p.paket===x.k?' selected':''}>${x.namn}</option>`).join('');
+  d.innerHTML = `
+    <div><label>Paket</label><select data-i="${i}" data-f="paket">${opts}</select></div>
+    <div><label>Vuxen eller barn</label>
+      <select data-i="${i}" data-f="typ">
+        <option value="vuxen"${p.typ==='vuxen'?' selected':''}>Vuxen</option>
+        <option value="barn"${p.typ==='barn'?' selected':''}>Barn / ungdom</option>
+      </select></div>
+    <div><label>Ålder</label><input type="number" min="0" max="17" data-i="${i}" data-f="alder"
+        value="${p.alder??''}" ${p.typ==='barn'?'':'disabled'} placeholder="–"/></div>
+    <button type="button" class="del" data-i="${i}" data-f="del" title="Ta bort">×</button>`;
+  return d;
+}
+function renderPax(){
+  const list=$('paxList'); list.innerHTML='';
+  state.pax.forEach((p,i)=>list.appendChild(paxRow(p,i)));
+  list.querySelectorAll('[data-f]').forEach(el=>{
+    const i=+el.dataset.i, f=el.dataset.f;
+    if(f==='del'){ el.onclick=()=>{ if(state.pax.length>1){state.pax.splice(i,1); renderPax(); render();} }; return; }
+    el.onchange=()=>{
+      state.pax[i][f] = f==='alder' ? (el.value===''?null:+el.value) : el.value;
+      if(f==='typ' && el.value==='vuxen') state.pax[i].alder=null;
+      renderPax(); render();
+    };
+  });
+}
+$('addPax').onclick=()=>{ state.pax.push({paket:'S',typ:'vuxen',alder:null}); renderPax(); render(); };
+state.pax.push({paket:'S',typ:'vuxen',alder:null});
+renderPax();
+
+// ---- beräkning ----
+function berakna(){
+  const w = PRIS.veckor[state.vecka];
+  const sfx = state.veckor === 2 ? '02' : '01';
+  const rader = [], saknas = [];
+  let total = 0;
+
+  // gruppera paket
+  const grupper = {};
+  state.pax.forEach(p=>{ grupper[p.paket] = (grupper[p.paket]||0) + 1; });
+
+  PAKET.forEach(pk=>{
+    const antal = grupper[pk.k]; if(!antal) return;
+    const nyckel = pk.k + sfx;
+    const pris = w[nyckel];
+    const kod = `${pk.kod}${sfx}V${w.v}`;
+    if(pris == null){
+      saknas.push(`${pk.namn} ${state.veckor === 2 ? '2 veckor' : ''}`.trim());
+      rader.push({kod, lbl:`${pk.namn} × ${antal}`, amt:null});
+    } else {
+      const sum = pris * antal;
+      total += sum;
+      rader.push({kod, lbl:`${pk.namn} × ${antal}`, amt:sum});
+    }
+  });
+
+  // enkelrumstillägg
+  if(state.pax.length === 1 && state.dela === 'nej'){
+    const t = w.E * state.veckor;
+    total += t;
+    rader.push({kod:`WWE${sfx}V${w.v}`, lbl:'Enkelrumstillägg', amt:t});
+  }
+
+  // rum
+  const rumNamn = $('rum').value;
+  if(rumNamn){
+    const r = PRIS.rum.find(x=>x.name===rumNamn);
+    if(r && r.t){
+      const t = r.t * state.veckor;
+      total += t;
+      rader.push({kod:r.name, lbl:`Rumstillägg ${r.name}`, amt:t});
+    }
+  }
+
+  // försäkring — endast S och F, en per seglare och vistelse
+  const seglare = state.pax.filter(p=>p.paket==='S'||p.paket==='F').length;
+  if(seglare){
+    const f = PRIS.forsakring * seglare;
+    total += f;
+    rader.push({kod:'WW-F', lbl:`Ansvarsförsäkring × ${seglare}`, amt:f});
+  }
+
+  // transfer
+  if(state.transfer !== 'nej'){
+    const antal = Math.max(0, +$('tAntal').value || 0);
+    const resor = state.transfer === 'tor' ? 2 : 1;
+    const T = PRIS.transfer;
+    const steg = T.trappa.find(x => antal >= x.min && antal <= x.max);
+    if(antal && steg){
+      const sek = Math.round(steg.ww_eur_enkel * PRIS.kurs_sek_per_eur);
+      const t = sek * resor;
+      total += t;
+      rader.push({kod:'Transfer tor WW',
+        lbl:`${steg.namn} · ${state.transfer==='tor'?'t/r':'enkel'} · ${antal} pers`, amt:t});
+    }
+  }
+
+  const barn = state.pax.filter(p=>p.typ==='barn').length;
+  return {rader, total, saknas, barn, seglare};
+}
+
+function render(){
+  fyllRum();
+  $('delaRum').style.display = state.pax.length === 1 ? 'block' : 'none';
+  $('transferDetalj').style.display = state.transfer === 'nej' ? 'none' : 'grid';
+  const tAnt = Math.max(0, +$('tAntal').value || 0);
+  const T = PRIS.transfer;
+  const steg = T.trappa.find(x => tAnt >= x.min && tAnt <= x.max);
+  $('samNote').style.display = state.transfer !== 'nej' ? 'block' : 'none';
+  $('samText').innerHTML = !tAnt
+    ? 'Ange hur många ni är, så räknar vi fram transferpriset.'
+    : (steg
+        ? `Ni är ${tAnt} — då ordnar vi <b>${steg.namn.toLowerCase()}</b>. Priset är per fordon och resväg.`
+        : 'Fler än sju personer — hör av er, så ordnar vi minibuss till bättre pris.');
+  const r = berakna();
+  $('barnNote').style.display = r.barn ? 'block' : 'none';
+
+  $('lines').innerHTML = r.rader.map(x=>`
+    <div class="line"><span class="lbl">${x.lbl}<span class="code">${x.kod}</span></span>
+    <span class="amt">${x.amt==null ? 'offereras' : kr(x.amt)}</span></div>`).join('');
+
+  $('total').textContent = kr(r.total);
+  $('pbTotal').textContent = kr(r.total);
+  $('dep').textContent = kr(PRIS.handpenning_per_person * state.pax.length);
+
+  const w = $('warn');
+  if(r.saknas.length){
+    w.style.display='block';
+    w.textContent = `${r.saknas.join(', ')} har inget publicerat pris för vald vecka — vi räknar fram det manuellt och återkommer.`;
+  } else if(r.barn){
+    w.style.display='block';
+    w.textContent = 'Barnrabatten är inte medräknad ovan — den dras av på offerten.';
+  } else if(!$('rum').value){
+    w.style.display='block';
+    w.textContent = 'Inget rumsönskemål valt — summan kan bli högre. Endast ett fåtal rum är utan rumstillägg.';
+  } else { w.style.display='none'; }
+
+  $('sammanfattning').textContent = sammanfatta();
+}
+
+['tAntal','flyg'].forEach(id=>{ $(id).addEventListener('input', render); });
+
+function sammanfatta(){
+  const w = PRIS.veckor[state.vecka], r = berakna();
+  const rows = r.rader.map(x=>`  ${x.kod.padEnd(16)} ${x.lbl}  —  ${x.amt==null?'offereras':kr(x.amt)}`).join('\n');
+  const tAnt = Math.max(0,+$('tAntal').value||0);
+  const steg = PRIS.transfer.trappa.find(x=>tAnt>=x.min && tAnt<=x.max);
+  return [
+    `MIN RESA — sammanställd på wildwind.seafari.se`,
+    ``,
+    `Avresa: ${w.label} (vecka ${w.v}) · ${state.veckor} ${state.veckor===1?'vecka':'veckor'}`,
+    `Deltagare: ${state.pax.length}${r.barn?` (varav ${r.barn} barn/ungdom)`:''}`,
+    `Rumsönskemål: ${$('rum').value || 'inget särskilt (rumstillägg ej medräknat)'}`,
+    state.pax.length===1 ? `Ensamresenär, kan dela rum: ${state.dela}` : null,
+    state.transfer!=='nej' && steg
+      ? `Transfer: ${steg.namn}, ${state.transfer==='tor'?'tur & retur':'enkel resa'}, ${tAnt} pers${$('flyg').value?` · ${$('flyg').value}`:' · flyg ej bokat'}`
+      : `Transfer: nej tack`,
+    ``,
+    `Preliminär beräkning:`,
+    rows,
+    `  ${'SUMMA'.padEnd(16)} ${kr(r.total)}`,
+    `  ${'Handpenning'.padEnd(16)} ${kr(PRIS.handpenning_per_person * state.pax.length)}`,
+    r.barn ? `\n  OBS: barnrabatt ej medräknad — dras av på offerten.` : null,
+    r.saknas.length ? `\n  OBS: ${r.saknas.join(', ')} saknar publicerat pris för vald vecka.` : null,
+    !$('rum').value ? `\n  OBS: inget rum valt — rumstillägg tillkommer om det rum vi får har ett.` : null,
+  ].filter(x=>x!==null).join('\n');
+}
+
+$('kopiera').onclick = async () => {
+  const txt = sammanfatta();
+  try { await navigator.clipboard.writeText(txt); }
+  catch(e){ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta);
+            ta.select(); document.execCommand('copy'); ta.remove(); }
+  const b=$('kopiera'); const org=b.textContent;
+  b.textContent='✓ Kopierat — klistra in i formuläret nedan';
+  b.classList.add('kopierat');
+  setTimeout(()=>{ b.textContent=org; b.classList.remove('kopierat'); }, 2600);
+};
+$('pbSe').onclick = () => {
+  document.querySelector('.sum').scrollIntoView({behavior:'smooth', block:'center'});
+};
+
+$('send').onclick = () => {
+  $('skickaKort').scrollIntoView({behavior:'smooth', block:'start'});
+};
+
+render();
+</script>

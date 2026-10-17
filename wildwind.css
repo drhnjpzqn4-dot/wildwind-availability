@@ -156,6 +156,7 @@ section { padding: 88px 40px; }
 .slides .sl-dots { position: absolute; left: 0; right: 0; bottom: 12px; display: flex; justify-content: center; gap: 8px; z-index: 2; }
 .slides .sl-dots button { width: 10px; height: 10px; border-radius: 50%; border: 0; padding: 0; background: rgba(255,255,255,.55); cursor: pointer; }
 .slides .sl-dots button.on { background: #fff; }
+.intresse-box { background: #fff; border: 1px solid var(--sand-dark); border-radius: var(--radius); padding: 32px; box-shadow: 0 12px 34px rgba(11,61,114,0.08); }
 .caption { font-size: 12px; color: var(--text-light); margin-top: 8px; }
 
 /* Plats för Pias egna bilder */

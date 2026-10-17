@@ -1,0 +1,345 @@
+/* Wildwind · wildwind.seafari.se — gemensam stil för sidorna
+   Färger och typsnitt är desamma som i boende.html (tidigare index.html). */
+:root {
+  --azure:      #0B3D72;
+  --azure-mid:  #1A5C9A;
+  --sky:        #5BA4CF;
+  --sand:       #F5EDD8;
+  --sand-dark:  #E6D5BA;
+  --white:      #FDFAF5;
+  --terra:      #C07245;
+  --gold:       #C9963A;
+  --text:       #2A2A2A;
+  --text-mid:   #555;
+  --text-light: #888;
+  --radius:     12px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+body {
+  font-family: 'Nunito Sans', sans-serif;
+  background: var(--white); color: var(--text);
+  font-size: 16px; line-height: 1.65;
+}
+img { max-width: 100%; display: block; }
+a { color: var(--azure-mid); }
+
+/* ─── NAV ─── */
+.site-nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: rgba(11, 61, 114, 0.96);
+  backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 40px; height: 64px;
+}
+.nav-logo {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 22px; font-weight: 600; color: #fff;
+  text-decoration: none; letter-spacing: 0.04em;
+}
+.nav-logo span { color: var(--gold); }
+.nav-logo img { display: block; height: 28px; width: auto; }
+.nav-links { display: flex; align-items: center; gap: 30px; list-style: none; }
+.nav-links a {
+  color: rgba(255,255,255,0.85); text-decoration: none;
+  font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  transition: color .2s;
+}
+.nav-links a:hover, .nav-links a[aria-current="page"] { color: var(--gold); }
+.nav-links a.nav-boka {
+  background: var(--gold); color: #fff; padding: 9px 20px; border-radius: 40px;
+}
+.nav-links a.nav-boka:hover { background: #b8832e; color: #fff; }
+.nav-toggle {
+  display: none; background: none; border: 0; cursor: pointer;
+  width: 44px; height: 44px; color: #fff; font-size: 26px; line-height: 1;
+}
+
+/* ─── HERO ─── */
+.hero {
+  position: relative; min-height: 560px; height: 88vh;
+  display: flex; align-items: flex-end; overflow: hidden;
+  background: var(--azure);
+}
+.hero.hero-page { height: 62vh; min-height: 440px; }
+.hero-img {
+  position: absolute; inset: 0;
+  background-size: cover; background-position: center;
+  transform: scale(1.04); animation: heroZoom 12s ease-out forwards;
+}
+@keyframes heroZoom { to { transform: scale(1); } }
+.hero-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(11,61,114,0.72) 0%, rgba(11,61,114,0.12) 55%, rgba(11,61,114,0.25) 100%);
+}
+/* Segling: ingen blå ton över bilden – bara en mjuk skugga under texten */
+.hero-clear .hero-overlay { background: linear-gradient(to top, rgba(0,20,40,0.55) 0%, rgba(0,20,40,0.18) 38%, transparent 62%); }
+.hero-clear h1, .hero-clear .lead, .hero-clear .eyebrow { text-shadow: 0 2px 14px rgba(0,0,0,.35); }
+.hero-content {
+  position: relative; z-index: 2; padding: 0 60px 72px; max-width: 820px;
+  animation: fadeUp 1.1s ease both;
+}
+@keyframes fadeUp { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
+.eyebrow {
+  font-size: 12px; font-weight: 600; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--gold); margin-bottom: 12px;
+}
+.hero h1 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: clamp(38px, 6vw, 68px); font-weight: 400; line-height: 1.08;
+  color: #fff; margin-bottom: 18px;
+}
+.hero h1 em { font-style: italic; color: var(--sand); }
+.hero p.lead { font-size: 17px; color: rgba(255,255,255,0.88); max-width: 560px; margin-bottom: 32px; font-weight: 300; }
+.ctas { display: flex; gap: 14px; flex-wrap: wrap; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 14px 28px; border-radius: 40px;
+  font-size: 13px; font-weight: 600; letter-spacing: 0.06em;
+  text-decoration: none; text-transform: uppercase;
+  transition: all .25s; cursor: pointer; border: none;
+}
+.btn-primary { background: var(--gold); color: #fff; }
+.btn-primary:hover { background: #b8832e; transform: translateY(-1px); }
+.btn-outline { background: transparent; color: #fff; border: 1.5px solid rgba(255,255,255,0.55); }
+.btn-outline:hover { background: rgba(255,255,255,0.12); border-color: #fff; }
+.btn-dark { background: var(--azure); color: #fff; }
+.btn-dark:hover { background: var(--azure-mid); }
+.btn-ghost { background: transparent; color: var(--azure); border: 1.5px solid var(--azure); }
+.btn-ghost:hover { background: var(--azure); color: #fff; }
+
+/* ─── SECTIONS ─── */
+section { padding: 88px 40px; }
+.inner { max-width: 1200px; margin: 0 auto; }
+.inner-narrow { max-width: 820px; margin: 0 auto; }
+.bg-sand { background: var(--sand); }
+.bg-azure { background: var(--azure); color: rgba(255,255,255,0.85); }
+.bg-azure .section-title { color: #fff; }
+.bg-azure .label { color: var(--gold); }
+.bg-azure .section-sub { color: rgba(255,255,255,0.75); }
+.label {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--terra); margin-bottom: 10px;
+}
+.section-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: clamp(30px, 4vw, 46px); font-weight: 400;
+  color: var(--azure); margin-bottom: 14px; line-height: 1.15;
+}
+.section-sub { font-size: 16px; color: var(--text-mid); max-width: 640px; margin-bottom: 44px; font-weight: 300; }
+.prose p { margin-bottom: 16px; color: var(--text-mid); font-weight: 300; font-size: 16.5px; }
+.prose p strong { color: var(--text); font-weight: 600; }
+.prose h3 {
+  font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 600;
+  color: var(--azure); margin: 28px 0 8px;
+}
+
+/* Text + bild bredvid varandra */
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+.split.reverse > :first-child { order: 2; }
+.photo {
+  border-radius: var(--radius); overflow: hidden; aspect-ratio: 4/3;
+  background: var(--sand-dark); box-shadow: 0 20px 60px rgba(11,61,114,0.16);
+}
+.photo img { width: 100%; height: 100%; object-fit: cover; }
+.photo.wide { aspect-ratio: 16/9; }
+.caption { font-size: 12px; color: var(--text-light); margin-top: 8px; }
+
+/* Plats för Pias egna bilder */
+.pia-bild {
+  border: 2px dashed var(--gold); border-radius: var(--radius);
+  background: repeating-linear-gradient(45deg, #fbf5e8, #fbf5e8 14px, #f6ecd6 14px, #f6ecd6 28px);
+  aspect-ratio: 4/3; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; text-align: center;
+  padding: 24px; color: #8a6420;
+}
+.pia-bild.wide { aspect-ratio: 16/9; }
+.pia-bild strong { font-size: 13px; letter-spacing: .14em; text-transform: uppercase; }
+.pia-bild span { font-size: 13px; margin-top: 6px; max-width: 320px; }
+
+/* Kort */
+.cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; }
+.cards.three { grid-template-columns: repeat(3, 1fr); }
+.cards.two { grid-template-columns: repeat(2, 1fr); }
+.card {
+  background: #fff; border: 1px solid var(--sand-dark); border-radius: var(--radius);
+  overflow: hidden; display: flex; flex-direction: column;
+  transition: transform .2s, box-shadow .2s; text-decoration: none; color: inherit;
+}
+a.card:hover { transform: translateY(-3px); box-shadow: 0 12px 34px rgba(11,61,114,0.12); }
+.card-img { aspect-ratio: 4/3; background: var(--sand-dark); overflow: hidden; }
+.card-img img { width: 100%; height: 100%; object-fit: cover; }
+.card-body { padding: 20px 22px 24px; flex: 1; display: flex; flex-direction: column; }
+.card h3 {
+  font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 600;
+  color: var(--azure); margin-bottom: 6px; line-height: 1.2;
+}
+.card p { font-size: 14.5px; color: var(--text-mid); font-weight: 300; flex: 1; }
+.card .more { margin-top: 14px; font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--terra); }
+
+/* Fakta-chips */
+.chips { display: flex; flex-wrap: wrap; gap: 10px; }
+.chip {
+  background: var(--sand); color: var(--azure);
+  font-size: 13px; font-weight: 600; padding: 7px 15px; border-radius: 20px;
+}
+.bg-sand .chip { background: #fff; }
+.bg-azure .chip { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); }
+.bg-azure .chip strong { color: var(--gold); }
+
+/* Listor med bocka */
+.checks { list-style: none; }
+.checks li {
+  position: relative; padding: 9px 0 9px 32px;
+  border-bottom: 1px solid var(--sand-dark); font-size: 15.5px;
+}
+.checks li::before {
+  content: "✓"; position: absolute; left: 4px; top: 9px;
+  color: var(--gold); font-weight: 700;
+}
+.checks.minus li::before { content: "–"; color: var(--text-light); }
+.bg-azure .checks li { border-color: rgba(255,255,255,0.15); }
+
+/* Vinden */
+.wind { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.wind-card { background: #fff; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--sand-dark); }
+.wind-card .card-img { aspect-ratio: 16/10; }
+.wind-time {
+  display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .16em;
+  text-transform: uppercase; padding: 4px 12px; border-radius: 20px; margin-bottom: 10px;
+}
+.wind-sketch { display: flex; justify-content: center; padding: 26px 0 0; }
+.wind-sketch img { width: 110px; height: 110px; border-radius: 50%; }
+.wind-svg { background: #fff; padding: 22px 22px 0; }
+.wind-svg svg { display: block; width: 100%; max-width: 340px; height: auto; margin: 0 auto; border-radius: 6px; }
+.wind-time { align-self: flex-start; }
+.wind-card h3 { font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 600; color: var(--azure); margin-bottom: 6px; }
+.wind-card p { font-size: 15px; color: var(--text-mid); font-weight: 300; }
+.wind-am { background: #e4f0f8; color: var(--azure-mid); }
+.wind-pm { background: #f7e6d9; color: var(--terra); }
+
+/* Båtlistan */
+.fleet { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+.fleet h3 {
+  font-family: 'Cormorant Garamond', serif; font-size: 28px; font-weight: 600;
+  color: var(--azure); margin-bottom: 4px;
+}
+.fleet .fleet-sub { font-size: 13px; color: var(--text-light); margin-bottom: 14px; }
+.boat { display: grid; grid-template-columns: 1fr auto; gap: 4px 14px; padding: 12px 0; border-bottom: 1px solid var(--sand-dark); }
+.boat b { color: var(--azure); font-size: 15.5px; }
+.boat .n { font-size: 12px; font-weight: 700; color: var(--terra); background: var(--sand); padding: 2px 10px; border-radius: 12px; align-self: start; white-space: nowrap; }
+.boat small { grid-column: 1 / -1; color: var(--text-mid); font-size: 13.5px; font-weight: 300; }
+.note {
+  font-size: 13px; color: var(--terra); margin-top: 18px; padding: 10px 14px;
+  background: rgba(192,114,69,0.08); border-radius: 8px; border-left: 3px solid var(--terra);
+}
+
+/* YouTube (laddas först vid klick) */
+.videos { display: grid; grid-template-columns: repeat(2, 1fr); gap: 22px; }
+.yt {
+  position: relative; display: block; width: 100%; aspect-ratio: 16/9;
+  border: 0; padding: 0; border-radius: var(--radius); overflow: hidden;
+  background: #0a2a4f center/cover no-repeat; cursor: pointer;
+}
+.yt::after {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 68px; height: 48px;
+  transform: translate(-50%, -50%); border-radius: 12px; background: rgba(0,0,0,.65);
+  transition: background .2s;
+}
+.yt::before {
+  content: ""; position: absolute; left: 50%; top: 50%; z-index: 2;
+  transform: translate(-35%, -50%);
+  border-style: solid; border-width: 11px 0 11px 18px; border-color: transparent transparent transparent #fff;
+}
+.yt:hover::after { background: #c4302b; }
+.yt iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.video-title { font-size: 14px; font-weight: 600; color: #fff; margin-top: 10px; }
+.bg-sand .video-title, section:not(.bg-azure) .video-title { color: var(--azure); }
+.vlinks { columns: 2; column-gap: 40px; list-style: none; margin-top: 8px; }
+.vlinks li { break-inside: avoid; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.12); font-size: 14.5px; }
+.vlinks a { color: #fff; text-decoration: none; }
+.vlinks a:hover { color: var(--gold); }
+.vlinks a::before { content: "▶ "; color: var(--gold); font-size: 11px; }
+
+/* Klasser (Healthy Options) */
+.classes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; align-items: start; }
+.class-group { background: #fff; border: 1px solid var(--sand-dark); border-radius: var(--radius); padding: 24px; }
+.class-group h3 {
+  font-family: 'Cormorant Garamond', serif; font-size: 28px; font-weight: 600; color: var(--azure);
+  display: flex; justify-content: space-between; align-items: baseline;
+}
+.class-group h3 span { font-family: 'Nunito Sans', sans-serif; font-size: 12px; color: var(--terra); font-weight: 700; letter-spacing: .1em; }
+.class-group .intro { font-size: 13.5px; color: var(--text-mid); margin: 4px 0 12px; font-weight: 300; }
+.class { padding: 9px 0; border-top: 1px solid var(--sand-dark); }
+.class b { display: block; color: var(--azure); font-size: 14.5px; }
+.class small { color: var(--text-mid); font-size: 13px; font-weight: 300; line-height: 1.5; display: block; }
+
+/* CTA-band */
+.cta-band { background: var(--azure); text-align: center; padding: 72px 40px; }
+.cta-band .label { color: var(--gold); }
+.cta-band h2 {
+  font-family: 'Cormorant Garamond', serif; font-size: clamp(30px, 4vw, 46px);
+  font-weight: 400; color: #fff; margin-bottom: 14px; line-height: 1.15;
+}
+.cta-band p { color: rgba(255,255,255,0.78); max-width: 580px; margin: 0 auto 30px; font-weight: 300; }
+.cta-band .ctas { justify-content: center; }
+
+/* Pia */
+.pia { display: grid; grid-template-columns: 220px 1fr; gap: 40px; align-items: center; }
+.pia .pia-bild { aspect-ratio: 1; border-radius: 50%; padding: 30px; }
+.pia-foto { aspect-ratio: 1; border-radius: 50%; overflow: hidden; background: var(--sand-dark); box-shadow: 0 14px 40px rgba(11,61,114,.18); }
+.pia-foto img { width: 100%; height: 100%; object-fit: cover; }
+
+/* Siffror */
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; text-align: center; }
+.stat b { display: block; font-family: 'Cormorant Garamond', serif; font-size: 44px; font-weight: 600; color: var(--gold); line-height: 1.1; }
+.stat span { font-size: 13px; color: rgba(255,255,255,0.75); }
+
+/* Footer */
+footer {
+  background: #071E3D; color: rgba(255,255,255,0.6);
+  padding: 52px 40px; text-align: center; font-size: 13px;
+}
+footer a { color: var(--gold); text-decoration: none; }
+footer strong { color: #fff; }
+footer .f-title { font-family: 'Cormorant Garamond', serif; font-size: 22px; color: #fff; margin-bottom: 8px; }
+footer .f-nav { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; margin: 16px 0; }
+
+/* Bild som inte laddar → lugn sandyta i stället för trasig ikon */
+img.broken { visibility: hidden; }
+
+/* ─── RESPONSIVE ─── */
+@media (max-width: 1000px) {
+  .cards { grid-template-columns: repeat(2, 1fr); }
+  .classes { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 900px) {
+  .site-nav { padding: 0 12px 0 20px; }
+  .nav-toggle { display: block; }
+  .nav-links {
+    display: none; position: absolute; top: 64px; left: 0; right: 0;
+    flex-direction: column; align-items: stretch; gap: 0;
+    background: var(--azure); padding: 8px 0 16px;
+    box-shadow: 0 12px 24px rgba(0,0,0,.2);
+  }
+  .nav-links.open { display: flex; }
+  .nav-links a { display: block; padding: 14px 24px; font-size: 14px; }
+  .nav-links a.nav-boka { margin: 8px 24px 0; text-align: center; }
+  .hero-content { padding: 0 24px 52px; }
+  section { padding: 60px 20px; }
+  .cta-band { padding: 60px 20px; }
+  .split, .wind, .fleet, .videos, .cards.three, .cards.two { grid-template-columns: 1fr; gap: 32px; }
+  .split.reverse > :first-child { order: 0; }
+  .pia { grid-template-columns: 1fr; text-align: left; }
+  .pia .pia-bild, .pia-foto { width: 180px; }
+  .stats { grid-template-columns: 1fr 1fr; gap: 28px; }
+  .vlinks { columns: 1; }
+  footer { padding: 44px 20px; }
+}
+@media (max-width: 600px) {
+  .cards, .classes { grid-template-columns: 1fr; }
+  .hero { height: auto; min-height: 88vh; }
+  .hero.hero-page { min-height: 60vh; }
+  .btn { padding: 13px 22px; }
+}

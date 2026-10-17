@@ -45,7 +45,7 @@ select:focus,input:focus,textarea:focus{outline:2px solid var(--azure2);outline-
 .addbtn{margin-top:4px;background:var(--sand);border:1px dashed var(--sand2);color:var(--azure);
   padding:9px 14px;border-radius:9px;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer;}
 .note{background:var(--sand);border-radius:9px;padding:10px 12px;font-size:12px;color:#5a4a2a;margin-top:10px;}
-.side{position:sticky;top:20px;}
+.side{position:sticky;top:84px;}
 .sum{background:var(--azure);color:#fff;border-radius:14px;padding:20px;}
 .sum h2{color:#fff;}
 .line{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.15);font-size:13px;}
@@ -82,13 +82,66 @@ select:focus,input:focus,textarea:focus{outline:2px solid var(--azure2);outline-
   body{padding-bottom:74px;}
   .side{position:static;}
 }
+/* Meny – samma som övriga sidor */
+/* ─── NAV ─── */
+.site-nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: rgba(11, 61, 114, 0.96);
+  backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 40px; height: 64px;
+}
+.nav-logo {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 22px; font-weight: 600; color: #fff;
+  text-decoration: none; letter-spacing: 0.04em;
+}
+.nav-logo span { color: var(--gold); }
+.nav-logo img { display: block; height: 28px; width: auto; }
+.nav-links { display: flex; align-items: center; gap: 30px; list-style: none; }
+.nav-links a {
+  color: rgba(255,255,255,0.85); text-decoration: none;
+  font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  transition: color .2s;
+}
+.nav-links a:hover, .nav-links a[aria-current="page"] { color: var(--gold); }
+.nav-links a.nav-boka {
+  background: var(--gold); color: #fff; padding: 9px 20px; border-radius: 40px;
+}
+.nav-links a.nav-boka:hover { background: #b8832e; color: #fff; }
+.nav-toggle {
+  display: none; background: none; border: 0; cursor: pointer;
+  width: 44px; height: 44px; color: #fff; font-size: 26px; line-height: 1;
+}
+
+@media (max-width: 900px) {
+  .site-nav { padding: 0 12px 0 20px; }
+  .nav-toggle { display: block; }
+  .nav-links { display: none; position: absolute; top: 64px; left: 0; right: 0; flex-direction: column;
+    align-items: stretch; gap: 0; background: var(--azure); padding: 8px 0 16px; box-shadow: 0 12px 24px rgba(0,0,0,.2); }
+  .nav-links.open { display: flex; }
+  .nav-links a { display: block; padding: 14px 24px; font-size: 14px; }
+  .nav-links a.nav-boka { margin: 8px 24px 0; text-align: center; }
+}
+.nav-spacer { height: 64px; }
 </style>
 </head>
 <body>
+<nav class="site-nav" aria-label="Huvudmeny">
+  <a class="nav-logo" href="index.html" aria-label="Wildwind – startsidan"><img src="wildwind-logo-vit.png" alt="Wildwind" width="182" height="28"/></a>
+  <button class="nav-toggle" type="button" aria-label="Öppna menyn" aria-expanded="false">☰</button>
+  <ul class="nav-links">
+    <li><a href="segling.html">Segling</a></li>
+    <li><a href="boende.html">Boende</a></li>
+    <li><a href="healthy-options.html">Healthy Options</a></li>
+    <li><a href="omgivningen.html">Omgivningen</a></li>
+    <li><a href="boka.html" class="nav-boka">Boka</a></li>
+  </ul>
+</nav>
+<div class="nav-spacer"></div>
 <div class="banner">Priserna nedan är <b>2026 års priser</b> och visas som vägledning. 2027 års priser och veckor publiceras inom kort — hör av dig så räknar vi fram din offert.</div>
 <header>
-  <a class="tillbaka" href="index.html">← Wildwind Vassiliki</a>
-  <h1>Räkna ut din resa</h1>
+    <h1>Räkna ut din resa</h1>
   <p>Wildwind &amp; Healthy Options · Vassiliki, Lefkas · Seafari AB</p>
 </header>
 <div class="pricebar">

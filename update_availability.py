@@ -98,7 +98,9 @@ def parse_availability(path):
         if pd.notna(dn) and "SATURDAY" in str(dn).upper() and pd.notna(dv):
             dt = pd.to_datetime(dv)
             lb = dt.strftime("%-d %b")
-            p  = ALL_PRICES.get(lb,(None,)*7)
+            if lb not in ALL_PRICES:
+                continue  # bara veckor i Wildwinds prislista (t.ex. inte 9 okt, reserverad för engelsk grupp)
+            p  = ALL_PRICES[lb]
             saturdays.append({"col":col,"date":dt.strftime("%Y-%m-%d"),
                 "display":lb,"sail1":p[0],"sail2":p[1],
                 "faw1":p[2],"faw2":p[3],"ho1":p[4],"ho2":p[5],"single":p[6]})

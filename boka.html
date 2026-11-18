@@ -35,9 +35,11 @@ select:focus,input:focus,textarea:focus{outline:2px solid var(--azure2);outline-
 .seg button{flex:1;min-width:110px;padding:9px 10px;border:1px solid #d5cdb9;background:#fff;border-radius:9px;
   font-family:inherit;font-size:13px;font-weight:600;color:var(--mid);cursor:pointer;}
 .seg button[aria-pressed=true]{background:var(--azure);border-color:var(--azure);color:#fff;}
-.pax{display:grid;grid-template-columns:1fr 132px 96px 34px;gap:8px;align-items:end;margin-bottom:9px;}
+.pax{display:grid;grid-template-columns:1.3fr 1fr 120px 70px 34px;gap:8px;align-items:end;margin-bottom:9px;}
+.rumrad{display:grid;grid-template-columns:1fr 34px;gap:8px;align-items:end;margin-bottom:8px;}
+.rumrad .del{border:1px solid #e0d6c2;background:#fff;border-radius:9px;height:37px;cursor:pointer;color:#b04a3d;font-size:16px;line-height:1;}
 @media(max-width:600px){
-  .pax{grid-template-columns:1fr 96px 40px;align-items:end;}
+  .pax{grid-template-columns:1fr 1fr 70px 40px;align-items:end;}
   .pax > div:first-child{grid-column:1 / -1;}
   .pax .del{justify-self:end;width:40px;}
 }
@@ -160,7 +162,7 @@ select:focus,input:focus,textarea:focus{outline:2px solid var(--azure2);outline-
 <div class="wrap">
 <div>
 
-  <div class="card">
+  <div class="card" id="steg1">
     <h2>1. När vill ni resa?</h2>
     <p class="hint">Alla resor går lördag till lördag.</p>
     <div class="row r2">
@@ -196,10 +198,12 @@ select:focus,input:focus,textarea:focus{outline:2px solid var(--azure2);outline-
   <div class="card">
     <h2>3. Boende</h2>
     <p class="hint">Välj gärna ett önskemål. Rummet bekräftas av oss mot Wildwind innan bokningen blir definitiv.</p>
-    <div><label for="rum">Rumsönskemål</label><select id="rum"></select></div>
+    <div id="rumLista"><div class="rumrad"><div><label for="rum">Rumsönskemål</label><select id="rum" class="rumval"></select></div><div></div></div></div>
+    <button type="button" class="addbtn" id="addRum">+ Lägg till ett rum till</button>
     <div class="note" id="rumInfo">Visar samtliga rum.</div>
-    <div class="note"><b>Summan kan bli högre.</b> Bara ett fåtal rum är utan rumstillägg, och vilket rum som är ledigt vet vi först när vi stämt av mot Wildwind. Väljer du inget önskemål räknar vi tills vidare utan tillägg — men rummet ni får kan ha ett.</div>
-    <div class="note">Rumstillägget gäller <b>hela rummet</b>, inte per person. Tillgängligheten uppdateras dagligen, men rum kan vara preliminärbokade i upp till 48 timmar utan att synas. Vi stämmer alltid av innan vi bekräftar.</div>
+    <div class="note"><b>Summan kan bli högre.</b> Bara ett fåtal rum är utan rumstillägg, och vilket rum som är ledigt vet vi först när vi stämt av mot Wildwind. Väljer du inget önskemål räknar vi tills vidare utan tillägg, men rummet ni får kan ha ett.</div>
+    <div class="note">Rumstillägget gäller <b>hela rummet</b>, inte per person. Är ni många kan ni lägga till fler rum.</div>
+    <div class="note"><b>Priset är preliminärt.</b> Ett rum kan ha blivit bokat efter vår senaste uppdatering. Vi är små hotell med en ganska manuell bokning, så jag stämmer alltid av med Wildwind innan jag bekräftar.</div>
   </div>
 
   <div class="card">
@@ -209,8 +213,9 @@ select:focus,input:focus,textarea:focus{outline:2px solid var(--azure2);outline-
       <div><label>Behöver ni transfer?</label>
         <div class="seg" id="segTransfer">
           <button type="button" data-t="nej" aria-pressed="true">Nej</button>
-          <button type="button" data-t="tor" aria-pressed="false">Tur &amp; retur</button>
-          <button type="button" data-t="enkel" aria-pressed="false">Enkel</button>
+          <button type="button" data-t="tor" aria-pressed="false">Tur och retur</button>
+          <button type="button" data-t="dit" aria-pressed="false">Bara dit</button>
+          <button type="button" data-t="hem" aria-pressed="false">Bara hem</button>
         </div>
       </div>
       <div><label for="tAntal">Antal personer</label><input type="number" id="tAntal" min="0" step="1" value="0"/></div>
@@ -222,31 +227,31 @@ select:focus,input:focus,textarea:focus{outline:2px solid var(--azure2);outline-
     <div class="note" id="samNote" style="display:none">
       <span id="samText"></span>
     </div>
-    <div class="note">Har ni inte bokat flyg än går det bra — fyll i uppgifterna senare, så bokar vi transfern då.</div>
+    <div class="note">Har ni inte bokat flyg än går det bra. Fyll i uppgifterna senare, så bokar vi transfern då.</div>
   </div>
 
   <div class="card" id="skickaKort">
-    <h2>5. Skicka in er förfrågan</h2>
-    <p class="hint">Kopiera sammanställningen och klistra in den i formuläret nedan, så har vi allt vi behöver.</p>
-    <button type="button" class="addbtn" id="kopiera" style="width:100%;padding:13px;font-size:14px">📋 Kopiera min resa</button>
-    <pre id="sammanfattning"></pre>
-    <div id="formWrap">
-      <iframe id="sdForm" src="https://travel.seafari.se/frm/uxyBQTFFKXoqgUqt"
-        title="Bokningsförfrågan" width="100%" height="1100" frameborder="0" allowtransparency="true"></iframe>
+    <h2>5. Era uppgifter och skicka</h2>
+    <p class="hint">Fyll i dina uppgifter och välj om det är en bokning eller en intresseanmälan. Knappen öppnar ett färdigt mejl till mig med hela sammanställningen.</p>
+    <div style="margin-bottom:12px"><label>Vad vill du göra?</label>
+      <div class="seg" id="segTyp">
+        <button type="button" data-y="Bokning" aria-pressed="true">Boka</button>
+        <button type="button" data-y="Intresseanmälan" aria-pressed="false">Intresseanmälan</button>
+      </div>
     </div>
-  </div>
-
-  <div class="card" style="display:none">
-    <h2>Era uppgifter</h2>
     <div class="row r2">
-      <div><label for="namn">Namn</label><input type="text" id="namn" autocomplete="name"/></div>
+      <div><label for="namn">Ditt namn</label><input type="text" id="namn" autocomplete="name"/></div>
       <div><label for="epost">E-post</label><input type="email" id="epost" autocomplete="email"/></div>
     </div>
     <div class="row r2">
       <div><label for="tel">Telefon</label><input type="tel" id="tel" autocomplete="tel"/></div>
-      <div><label for="adress">Adress</label><input type="text" id="adress" autocomplete="street-address"/></div>
+      <div><label for="adress">Adress (valfritt)</label><input type="text" id="adress" autocomplete="street-address"/></div>
     </div>
     <div><label for="ovrigt">Övriga önskemål</label><textarea id="ovrigt" rows="3" placeholder="Allergier, sällskap ni vill bo nära, tidigare erfarenhet ..."></textarea></div>
+    <a id="mejla" class="send" style="display:block;text-align:center;text-decoration:none;background:var(--azure);color:#fff;margin-top:16px" href="#">✉ Skicka till Pia</a>
+    <p class="hint" style="margin-top:10px">Öppnas inget mejl? Kopiera sammanställningen och skicka den till <a href="mailto:pia@wildwind.se">pia@wildwind.se</a>.</p>
+    <button type="button" class="addbtn" id="kopiera" style="width:100%;padding:13px;font-size:14px">📋 Kopiera min resa</button>
+    <pre id="sammanfattning"></pre>
   </div>
 
 </div>
@@ -259,9 +264,9 @@ select:focus,input:focus,textarea:focus{outline:2px solid var(--azure2);outline-
     <div class="dep">Bokningen bekräftas med <b id="dep">0 kr</b> i handpenning (1 500 kr/person).<br/>
       Resterande betalas 60 dagar före avresa. Fri avbokning fram till sista januari.</div>
     <div class="warn" id="warn" style="display:none"></div>
-    <button class="send" id="send">Skicka bokningsförfrågan ↓</button>
+    <button class="send" id="send">Boka eller anmäl intresse ↓</button>
   </div>
-  <p class="foot">Detta är en förfrågan, inte en bindande bokning. Vi stämmer av rum och tillgänglighet mot Wildwind och återkommer med en offert att godkänna. Flyg ingår inte. Grekland tar ut en lokal turistskatt på 2 € per rum och natt, som du betalar direkt till hotellet på plats.</p>
+  <p class="foot">Detta är en förfrågan, inte en bindande bokning. Priset är preliminärt, och ett rum kan ha blivit bokat efter vår senaste uppdatering. Vi stämmer av rum och tillgänglighet mot Wildwind och återkommer med en offert att godkänna. Flyg ingår inte. Grekland tar ut en lokal turistskatt på 2 € per rum och natt, som du betalar direkt till hotellet på plats.</p>
 </div>
 </div>
 
@@ -276,7 +281,7 @@ const PAKET = [
   {k:'A', namn:'Adventure',               kod:'WWA'},
   {k:'N', namn:'No sport',                kod:'WWN'},
 ];
-const state = {vecka:0, veckor:1, dela:'nej', transfer:'nej', pax:[]};
+const state = {vecka:0, veckor:1, dela:'nej', transfer:'nej', typ:'Bokning', pax:[]};
 const kr = n => n.toLocaleString('sv-SE') + ' kr';
 const $ = id => document.getElementById(id);
 
@@ -291,10 +296,27 @@ $('vecka').onchange = e => { state.vecka = +e.target.value; render(); };
 
 // ---- rum ----
 let AVAIL = null;
-const rumSel = $('rum');
+
+// förval från kalendern: boka.html?vecka=17%20Jul&rum=Melas%201
+const URLP = new URLSearchParams(location.search);
+let prefRum = URLP.get('rum');
+(function(){ const v = URLP.get('vecka'); if(v){ const i = PRIS.veckor.findIndex(w=>w.label===v); if(i>=0){ state.vecka = i; $('vecka').value = i; } } })();
+
+function valdaRum(){ return [...document.querySelectorAll('.rumval')].map(s=>s.value).filter(Boolean); }
+$('addRum').onclick = () => {
+  const rad = document.createElement('div'); rad.className = 'rumrad';
+  rad.innerHTML = '<div><select class="rumval"></select></div><button type="button" class="del" title="Ta bort">×</button>';
+  rad.querySelector('select').onchange = render;
+  rad.querySelector('.del').onclick = () => { rad.remove(); render(); };
+  $('rumLista').appendChild(rad); render();
+};
 
 function fyllRum(){
-  const valt = rumSel.value;
+  document.querySelectorAll('.rumval').forEach(fyllEttRum);
+}
+function fyllEttRum(rumSel){
+  let valt = rumSel.value;
+  if(rumSel.id==='rum' && prefRum){ valt = prefRum; prefRum = null; }
   rumSel.innerHTML = '';
   rumSel.appendChild(new Option('Inget särskilt önskemål',''));
 
@@ -316,24 +338,25 @@ function fyllRum(){
       const r = PRIS.rum.find(x=>x.name===nm); if(!r) return;
       if(ledigaNamn && !ledigaNamn.has(nm)) return;
       const till = r.t ? ` · +${r.t.toLocaleString('sv-SE')} kr/v` : ' · utan tillägg';
-      g.appendChild(new Option(`${r.name} — ${r.desc}${till}`, r.name));
+      g.appendChild(new Option(`${r.name}, ${r.desc}${till}`, r.name));
       n++; antalLediga++;
     });
     if(n) rumSel.appendChild(g);
   });
 
   if([...rumSel.options].some(o=>o.value===valt)) rumSel.value = valt;
+  if(rumSel.id!=='rum') return;
 
   const info = $('rumInfo');
   if(ledigaNamn){
     info.innerHTML = antalLediga
       ? `Visar de <b>${antalLediga} rum som är lediga</b> vecka ${PRIS.veckor[state.vecka].v}. Uppdaterat ${AVAIL.updated}.`
-      : `Inga rum ligger som lediga den veckan just nu — hör av er, ibland lossnar något.`;
+      : `Inga rum ligger som lediga den veckan just nu. Hör av er, ibland lossnar något.`;
   } else {
     info.innerHTML = 'Visar samtliga rum. Vi stämmer av tillgängligheten innan vi bekräftar.';
   }
 }
-rumSel.onchange = render;
+$('rum').onchange = render;
 
 fetch('availability.json', {cache:'no-store'})
   .then(r => r.ok ? r.json() : null)
@@ -355,21 +378,23 @@ function seg(id, key, cb){
 }
 seg('segVeckor','veckor');
 seg('segDela','dela');
-seg('segTransfer','transfer');
+seg('segTyp','typ');
+seg('segTransfer','transfer', ()=>{ if(!(+$('tAntal').value)) $('tAntal').value = state.pax.length; });
 
 // ---- deltagare ----
 function paxRow(p, i){
   const d=document.createElement('div'); d.className='pax';
   const opts = PAKET.map(x=>`<option value="${x.k}"${p.paket===x.k?' selected':''}>${x.namn}</option>`).join('');
   d.innerHTML = `
+    <div><label>Namn</label><input type="text" data-i="${i}" data-f="namn" value="${(p.namn||'').replace(/"/g,'&quot;')}" placeholder="För- och efternamn"/></div>
     <div><label>Paket</label><select data-i="${i}" data-f="paket">${opts}</select></div>
     <div><label>Vuxen eller barn</label>
       <select data-i="${i}" data-f="typ">
         <option value="vuxen"${p.typ==='vuxen'?' selected':''}>Vuxen</option>
         <option value="barn"${p.typ==='barn'?' selected':''}>Barn / ungdom</option>
       </select></div>
-    <div><label>Ålder</label><input type="number" min="0" max="17" data-i="${i}" data-f="alder"
-        value="${p.alder??''}" ${p.typ==='barn'?'':'disabled'} placeholder="–"/></div>
+    <div><label>Ålder</label><input type="number" min="0" max="99" data-i="${i}" data-f="alder"
+        value="${p.alder??''}" placeholder="${p.typ==='barn'?'ålder':'valfri'}"/></div>
     <button type="button" class="del" data-i="${i}" data-f="del" title="Ta bort">×</button>`;
   return d;
 }
@@ -379,9 +404,9 @@ function renderPax(){
   list.querySelectorAll('[data-f]').forEach(el=>{
     const i=+el.dataset.i, f=el.dataset.f;
     if(f==='del'){ el.onclick=()=>{ if(state.pax.length>1){state.pax.splice(i,1); renderPax(); render();} }; return; }
+    if(f==='namn'){ el.oninput=()=>{ state.pax[i].namn = el.value; $('sammanfattning').textContent = sammanfatta(); uppdateraMejl(); }; return; }
     el.onchange=()=>{
       state.pax[i][f] = f==='alder' ? (el.value===''?null:+el.value) : el.value;
-      if(f==='typ' && el.value==='vuxen') state.pax[i].alder=null;
       renderPax(); render();
     };
   });
@@ -425,15 +450,14 @@ function berakna(){
   }
 
   // rum
-  const rumNamn = $('rum').value;
-  if(rumNamn){
+  valdaRum().forEach(rumNamn=>{
     const r = PRIS.rum.find(x=>x.name===rumNamn);
     if(r && r.t){
       const t = r.t * state.veckor;
       total += t;
       rader.push({kod:r.name, lbl:`Rumstillägg ${r.name}`, amt:t});
     }
-  }
+  });
 
   // försäkring — endast S och F, en per seglare och vistelse
   const seglare = state.pax.filter(p=>p.paket==='S'||p.paket==='F').length;
@@ -450,11 +474,11 @@ function berakna(){
     const T = PRIS.transfer;
     const steg = T.trappa.find(x => antal >= x.min && antal <= x.max);
     if(antal && steg){
-      const sek = Math.round(steg.ww_eur_enkel * PRIS.kurs_sek_per_eur);
+      const sek = Math.round(steg.ww_eur_enkel * PRIS.kurs_sek_per_eur / 10) * 10;
       const t = sek * resor;
       total += t;
       rader.push({kod:'Transfer tor WW',
-        lbl:`${steg.namn} · ${state.transfer==='tor'?'t/r':'enkel'} · ${antal} pers`, amt:t});
+        lbl:`${steg.namn} · ${state.transfer==='tor'?'tur och retur':state.transfer==='dit'?'flygplatsen till Vassiliki':'Vassiliki till flygplatsen'} · ${antal} pers`, amt:t});
     }
   }
 
@@ -495,11 +519,12 @@ function render(){
   const T = PRIS.transfer;
   const steg = T.trappa.find(x => tAnt >= x.min && tAnt <= x.max);
   $('samNote').style.display = state.transfer !== 'nej' ? 'block' : 'none';
+  const resaKr = steg ? Math.round(steg.ww_eur_enkel * PRIS.kurs_sek_per_eur / 10) * 10 : 0;
   $('samText').innerHTML = !tAnt
     ? 'Ange hur många ni är, så räknar vi fram transferpriset.'
     : (steg
-        ? `Ni är ${tAnt} — då ordnar vi <b>${steg.namn.toLowerCase()}</b>. Priset är per fordon och resväg.`
-        : 'Fler än sju personer — hör av er, så ordnar vi minibuss till bättre pris.');
+        ? `Ni är ${tAnt}, då ordnar vi <b>${steg.namn.toLowerCase()}</b>. Priset gäller hela bilen, inte per person: <b>${kr(resaKr)} per resa</b>. ${state.transfer==='tor' ? `Tur och retur blir ${kr(resaKr*2)}.` : 'Ni har valt en resa.'}`
+        : 'Fler än sju personer: hör av er, så ordnar vi minibuss till bättre pris.');
   const r = berakna();
   $('barnNote').style.display = r.barn ? 'block' : 'none';
 
@@ -514,43 +539,57 @@ function render(){
   const w = $('warn');
   if(r.saknas.length){
     w.style.display='block';
-    w.textContent = `${r.saknas.join(', ')} har inget publicerat pris för vald vecka — vi räknar fram det manuellt och återkommer.`;
+    w.textContent = `${r.saknas.join(', ')} har inget publicerat pris för vald vecka. Jag räknar fram det manuellt och återkommer.`;
   } else if(r.barnUtan){
     w.style.display='block';
     w.textContent = 'Fyll i barnens ålder så räknas barnrabatten in. För barn under 6 år räknar jag fram priset på offerten.';
-  } else if(!$('rum').value){
+  } else if(!valdaRum().length){
     w.style.display='block';
-    w.textContent = 'Inget rumsönskemål valt — summan kan bli högre. Endast ett fåtal rum är utan rumstillägg.';
+    w.textContent = 'Inget rumsönskemål valt, så summan kan bli högre. Endast ett fåtal rum är utan rumstillägg.';
   } else { w.style.display='none'; }
 
   $('sammanfattning').textContent = sammanfatta();
+  uppdateraMejl();
+}
+
+function uppdateraMejl(){
+  const w = PRIS.veckor[state.vecka];
+  const subj = `${state.typ}: ${$('namn').value||'Wildwind'} · vecka ${w.v} (${w.label}) · ${state.pax.length} pers`;
+  $('mejla').href = 'mailto:pia@wildwind.se?subject=' + encodeURIComponent(subj) + '&body=' + encodeURIComponent(sammanfatta());
 }
 
 ['tAntal','flyg'].forEach(id=>{ $(id).addEventListener('input', render); });
+['namn','epost','tel','adress','ovrigt'].forEach(id=>{ $(id).addEventListener('input', ()=>{ $('sammanfattning').textContent = sammanfatta(); uppdateraMejl(); }); });
 
 function sammanfatta(){
   const w = PRIS.veckor[state.vecka], r = berakna();
-  const rows = r.rader.map(x=>`  ${x.kod.padEnd(16)} ${x.lbl}  —  ${x.amt==null?'offereras':kr(x.amt)}`).join('\n');
+  const rows = r.rader.map(x=>`  ${x.kod.padEnd(16)} ${x.lbl}:  ${x.amt==null?'offereras':kr(x.amt)}`).join('\n');
   const tAnt = Math.max(0,+$('tAntal').value||0);
   const steg = PRIS.transfer.trappa.find(x=>tAnt>=x.min && tAnt<=x.max);
   return [
-    `MIN RESA — sammanställd på wildwind.seafari.se`,
+    `${state.typ.toUpperCase()} via wildwind.seafari.se`,
+    ``,
+    `Kontakt: ${$('namn').value||'(namn saknas)'} · ${$('epost').value||'(e-post saknas)'} · ${$('tel').value||'(telefon saknas)'}`,
+    $('adress').value ? `Adress: ${$('adress').value}` : null,
     ``,
     `Avresa: ${w.label} (vecka ${w.v}) · ${state.veckor} ${state.veckor===1?'vecka':'veckor'}`,
     `Deltagare: ${state.pax.length}${r.barn?` (varav ${r.barn} barn/ungdom)`:''}`,
-    `Rumsönskemål: ${$('rum').value || 'inget särskilt (rumstillägg ej medräknat)'}`,
+    ...state.pax.map((p,i)=>`  ${i+1}. ${p.namn||'(namn)'}, ${p.alder!=null?p.alder+' år':(p.typ==='barn'?'barn, ålder saknas':'vuxen')}, ${(PAKET.find(x=>x.k===p.paket)||{}).namn||p.paket}`),
+    `Rumsönskemål: ${valdaRum().join(', ') || 'inget särskilt (rumstillägg ej medräknat)'}`,
     state.pax.length%2===1 ? `${state.pax.length===1?'Ensamresenär':'Udda antal'}: ${state.dela==='nej'?'eget rum (enkelrumstillägg)':state.dela==='ja'?'kan dela rum med annan gäst':'alla i samma rum'}` : null,
     state.transfer!=='nej' && steg
-      ? `Transfer: ${steg.namn}, ${state.transfer==='tor'?'tur & retur':'enkel resa'}, ${tAnt} pers${$('flyg').value?` · ${$('flyg').value}`:' · flyg ej bokat'}`
+      ? `Transfer: ${steg.namn}, ${state.transfer==='tor'?'tur och retur':state.transfer==='dit'?'bara dit (Preveza till Vassiliki)':'bara hem (Vassiliki till Preveza)'}, ${tAnt} pers${$('flyg').value?` · ${$('flyg').value}`:' · flyg ej bokat'}`
       : `Transfer: nej tack`,
     ``,
     `Preliminär beräkning:`,
     rows,
     `  ${'SUMMA'.padEnd(16)} ${kr(r.total)}`,
     `  ${'Handpenning'.padEnd(16)} ${kr(PRIS.handpenning_per_person * state.pax.length)}`,
-    r.barn ? `\n  OBS: barnrabatt ej medräknad — dras av på offerten.` : null,
+    r.barnUtan ? `\n  OBS: barnrabatt för barn utan ålder eller under 6 år räknas fram på offerten.` : null,
     r.saknas.length ? `\n  OBS: ${r.saknas.join(', ')} saknar publicerat pris för vald vecka.` : null,
-    !$('rum').value ? `\n  OBS: inget rum valt — rumstillägg tillkommer om det rum vi får har ett.` : null,
+    !valdaRum().length ? `\n  OBS: inget rum valt, rumstillägg tillkommer om det rum vi får har ett.` : null,
+    $('ovrigt').value ? `\nÖvriga önskemål: ${$('ovrigt').value}` : null,
+    `\nPriset är preliminärt. Pia stämmer av med Wildwind innan bokningen bekräftas.`,
   ].filter(x=>x!==null).join('\n');
 }
 
@@ -560,7 +599,7 @@ $('kopiera').onclick = async () => {
   catch(e){ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta);
             ta.select(); document.execCommand('copy'); ta.remove(); }
   const b=$('kopiera'); const org=b.textContent;
-  b.textContent='✓ Kopierat — klistra in i formuläret nedan';
+  b.textContent='✓ Kopierat, klistra in i ett mejl till pia@wildwind.se';
   b.classList.add('kopierat');
   setTimeout(()=>{ b.textContent=org; b.classList.remove('kopierat'); }, 2600);
 };
@@ -573,4 +612,5 @@ $('send').onclick = () => {
 };
 
 render();
+if(URLP.get('vecka') || URLP.get('rum')){ setTimeout(()=>$('steg1').scrollIntoView({behavior:'smooth', block:'start'}), 300); }
 </script>

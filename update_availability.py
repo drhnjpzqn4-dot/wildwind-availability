@@ -185,12 +185,12 @@ header h1{{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400
 .filter-wrap select{{padding:5px 10px;border:1px solid #ccc;border-radius:20px;font-family:inherit;font-size:12px;background:#fff;}}
 
 /* TABLE */
-.table-scroll{{overflow-x:auto;padding:16px 20px 24px;}}
+.table-scroll{{overflow:auto;max-height:calc(100vh - 110px);min-height:320px;margin:12px 20px 20px;border:1px solid #ece7dc;border-radius:8px;}}
 table{{border-collapse:collapse;font-size:12px;}}
 
 /* Rum-kolumn (header) */
 th.room-th{{
-  position:sticky;left:0;z-index:5;
+  position:sticky;left:0;top:0;z-index:6;
   background:var(--azure);color:#fff;
   padding:8px 12px;text-align:left;
   min-width:130px;font-size:11px;font-weight:700;
@@ -202,7 +202,7 @@ th.week-th{{
   background:var(--azure);color:#fff;
   padding:0;text-align:center;
   min-width:52px;width:52px;
-  position:sticky;top:0;z-index:2;
+  position:sticky;top:0;z-index:4;
 }}
 th.week-th .wh-inner{{
   display:flex;flex-direction:column;align-items:center;
@@ -303,8 +303,8 @@ td.cell{{padding:0;border:1px solid #ece7dc;}}
   <table id="tbl"></table>
 </div>
 
-<div class="infobox">ℹ️ Rum kan vara preliminärt bokade i upp till 48h utan att synas här. Kontakta oss för aktuell status.<br><strong>Priser per person baserat på att två delar rum</strong>, exkl. eventuellt rumstillägg. Klicka på en grön ruta för prisdetaljer.</div>
-<a href="mailto:pia@wildwind.se?subject=Wildwind%20bokningsf%C3%B6rfr%C3%A5gan" class="cta">✉ Skicka bokningsförfrågan</a>
+<div class="infobox">ℹ️ Priserna är preliminära. Ett rum kan ha blivit bokat efter vår senaste uppdatering, och vi är små hotell med en ganska manuell bokning. Jag stämmer alltid av innan jag bekräftar.<br><strong>Priser per person baserat på att två delar rum</strong>, exkl. eventuellt rumstillägg. Klicka på en grön ruta för prisdetaljer.</div>
+<a href="boka.html#steg1" target="_top" class="cta">Gå till bokningen</a>
 
 <!-- POPUP -->
 <div class="popup-overlay" id="overlay" onclick="closePopup(event)">
@@ -315,7 +315,7 @@ td.cell{{padding:0;border:1px solid #ece7dc;}}
     <div class="popup-desc" id="p-desc"></div>
     <div class="popup-prices" id="p-prices"></div>
     <div class="popup-ppp">Pris per person baserat på att två delar rum</div>
-    <a id="p-book" href="#" class="popup-book">✉ Intresseanmälan / Boka</a>
+    <a id="p-book" href="boka.html#steg1" target="_top" class="popup-book">Boka eller anmäl intresse</a>
   </div>
 </div>
 
@@ -427,22 +427,24 @@ function openPopup(name, wi) {{
   let ph = '';
   progs.forEach(([lbl, base], idx) => {{
     if (!base) return;
-    const total = base + til;
+    const total = base;
     const hi = idx === 0 ? ' highlight' : '';
     ph += '<div class="pp-row' + hi + '">';
     ph += '<div><div class="pp-label">' + lbl + '</div>';
-    if (til && idx === 0) ph += '<div class="pp-note">inkl. rumstillägg ' + til.toLocaleString('sv-SE') + ' kr</div>';
+
     ph += '</div>';
     ph += '<div class="pp-val">' + total.toLocaleString('sv-SE') + ' kr</div>';
     ph += '</div>';
   }});
+  if (til) {{
+    ph += '<div class="pp-row"><div class="pp-label">Rumstillägg (för hela rummet)</div><div class="pp-val">+' + til.toLocaleString('sv-SE') + ' kr/v</div></div>';
+  }}
   if (w.single) {{
     ph += '<div class="pp-row"><div class="pp-label">Enkelrumstillägg</div><div class="pp-val">+' + w.single.toLocaleString('sv-SE') + ' kr/v</div></div>';
   }}
   document.getElementById('p-prices').innerHTML = ph;
 
-  const subj = encodeURIComponent('Intresseanmälan: ' + name + ' vecka ' + w.display);
-  document.getElementById('p-book').href = 'mailto:pia@wildwind.se?subject=' + subj;
+  document.getElementById('p-book').href = 'boka.html?vecka=' + encodeURIComponent(w.display) + '&rum=' + encodeURIComponent(name) + '#steg1';
   document.getElementById('overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
 }}

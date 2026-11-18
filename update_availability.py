@@ -166,7 +166,9 @@ def generate_html(data):
   --white:#FDFAF5;--text:#2A2A2A;--mid:#666;
 }}
 *{{box-sizing:border-box;margin:0;padding:0;}}
-body{{font-family:'Nunito Sans',sans-serif;background:var(--white);color:var(--text);font-size:13px;}}
+html,body{{height:100%;}}
+body{{font-family:'Nunito Sans',sans-serif;background:var(--white);color:var(--text);font-size:13px;display:flex;flex-direction:column;height:100vh;overflow:hidden;}}
+header,.topbar,.infobox,.cta{{flex-shrink:0;}}
 
 /* HEADER */
 header{{background:var(--azure);color:#fff;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}}
@@ -185,7 +187,7 @@ header h1{{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400
 .filter-wrap select{{padding:5px 10px;border:1px solid #ccc;border-radius:20px;font-family:inherit;font-size:12px;background:#fff;}}
 
 /* TABLE */
-.table-scroll{{overflow:auto;max-height:calc(100vh - 110px);min-height:320px;margin:12px 20px 20px;border:1px solid #ece7dc;border-radius:8px;}}
+.table-scroll{{overflow:auto;flex:1 1 auto;min-height:0;margin:10px 20px 10px;border:1px solid #ece7dc;border-radius:8px;}}
 table{{border-collapse:collapse;font-size:12px;}}
 
 /* Rum-kolumn (header) */
@@ -246,8 +248,8 @@ td.cell{{padding:0;border:1px solid #ece7dc;}}
 .ci-booked{{background:var(--red-bg);color:var(--red);opacity:.55;}}
 
 /* INFO */
-.infobox{{margin:0 20px 24px;padding:10px 14px;background:#EDF3FA;border-left:4px solid #5BA4CF;border-radius:6px;font-size:11px;color:var(--mid);}}
-.cta{{display:inline-flex;align-items:center;gap:8px;margin:0 20px 28px;padding:12px 24px;background:var(--azure);color:#fff;border-radius:40px;text-decoration:none;font-size:13px;font-weight:600;}}
+.infobox{{margin:0 20px 8px;padding:10px 14px;background:#EDF3FA;border-left:4px solid #5BA4CF;border-radius:6px;font-size:11px;color:var(--mid);}}
+.cta{{display:inline-flex;align-self:flex-start;align-items:center;gap:8px;margin:0 20px 12px;padding:12px 24px;background:var(--azure);color:#fff;border-radius:40px;text-decoration:none;font-size:13px;font-weight:600;}}
 .cta:hover{{background:var(--azure2);}}
 
 /* POPUP */

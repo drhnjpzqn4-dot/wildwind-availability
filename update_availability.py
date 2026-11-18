@@ -5,7 +5,7 @@ import json, requests, pandas as pd
 from datetime import datetime
 from pathlib import Path
 
-DROPBOX_URL = "https://www.dropbox.com/scl/fi/i0ji499omsoc0yl4fuzo7/STEPH-VERSION-ALL-ROOMS-2026.xlsx?rlkey=lq3j8vz7hdlnoqvairj0yp2ih&dl=1"
+DROPBOX_URL = "https://www.dropbox.com/scl/fi/00tqgjw04ph26l50cltod/STEPH-VERSION-ALL-ROOMS-2027.xlsx?rlkey=uaw1ngacjal6m6ffs4izq25l2&dl=1"
 OUTPUT_FILE = "availability.html"
 
 ROW_TO_NAME = {
@@ -18,58 +18,58 @@ ROW_TO_NAME = {
 }
 COMBINED_ROOMS = {"Melas 2AB":[48,52]}
 
-ALL_PRICES = {
-    "25 Apr":(8990, 14110,None, None, 7570, 10840,1910),
-    "2 May": (9430, 14440,None, None, 7900, 13020,2130),
-    "9 May": (10300,16290,None, None, 8120, 13350,2180),
-    "16 May":(10840,17380,14000,23690,8230, 13350,2400),
-    "23 May":(10840,18470,14000,24780,7570, 14110,2400),
-    "30 May":(11930,19340,15090,25660,8660, 14440,2670),
-    "6 Jun": (12690,19560,15850,25870,9540, 14650,2780),
-    "13 Jun":(13020,20650,16180,26960,9750, 15200,2950),
-    "20 Jun":(13890,22610,17050,28920,11380,16290,3050),
-    "27 Jun":(14110,22820,17270,29140,11930,17380,3160),
-    "4 Jul": (14440,22820,17600,29140,12260,17380,3160),
-    "11 Jul":(14980,23690,18140,30010,12260,17380,3160),
-    "18 Jul":(15200,23910,18360,30230,12260,17380,3160),
-    "25 Jul":(15200,23910,18360,30230,12260,17380,3160),
-    "1 Aug": (15200,23910,18360,30230,12260,17380,3160),
-    "8 Aug": (15200,23910,18360,30230,12260,17380,3160),
-    "15 Aug":(14110,21730,17270,28050,12260,17380,3160),
-    "22 Aug":(12800,19880,15960,26200,11930,16290,2730),
-    "29 Aug":(11930,18470,15090,24780,9750, 15200,2460),
-    "5 Sep": (11710,17380,14870,23690,9210, 14110,2400),
-    "12 Sep":(11170,16290,14330,22610,8990, 13890,2130),
-    "19 Sep":(10300,15200,13460,None, 8660, 12260,2070),
-    "26 Sep":(9540, 13570,None, None, 7570, 11380,1910),
-    "3 Oct": (8990, 13020,None, None, 7360, None, 1910),
+ALL_PRICES = {  # 2027, SEK (EUR x 11.1530, Riksbanken okt 2026)
+    "24 Apr": (9980, 15340, None, None, 8530, 11990, 1950),
+    "1 May": (10540, 15560, None, None, 8870, 14110, 2170),
+    "8 May": (11430, 17230, None, None, 9200, 14220, 2230),
+    "15 May": (11990, 18900, 15220, 25370, 9310, 14780, 2450),
+    "22 May": (12100, 19800, 15340, 26270, 8760, 15340, 2450),
+    "29 May": (12210, 20350, 15450, 26820, 8870, 15340, 2730),
+    "5 Jun": (13890, 21470, 17120, 27940, 10650, 16450, 2840),
+    "12 Jun": (14440, 22250, 17680, 28720, 11100, 16670, 3010),
+    "19 Jun": (15340, 24260, 18570, 30730, 12770, 17790, 3120),
+    "26 Jun": (15560, 24480, 18790, 30950, 13330, 18900, 3230),
+    "3 Jul": (15890, 24820, 19130, 31280, 13660, 19240, 3230),
+    "10 Jul": (16450, 25370, 19690, 31840, 13660, 18900, 3230),
+    "17 Jul": (16670, 25600, 19910, 32060, 13660, 18900, 3230),
+    "24 Jul": (16670, 25600, 19910, 32060, 13660, 18900, 3230),
+    "31 Jul": (16670, 25600, 19910, 32060, 13660, 18900, 3230),
+    "7 Aug": (16670, 25600, 19910, 32060, 13660, 18900, 3230),
+    "14 Aug": (15560, 23920, 18790, 30390, 13660, 19460, 3230),
+    "21 Aug": (14220, 22250, 17450, 28720, 13330, 18570, 2790),
+    "28 Aug": (13330, 20350, 16560, 26820, 11100, 17010, 2510),
+    "4 Sep": (13100, 19800, 16340, 26270, 10540, 16450, 2450),
+    "11 Sep": (12550, 18680, 15780, 25150, 10320, 16230, 2170),
+    "18 Sep": (11430, 17230, 14670, 23700, 9760, 14220, 2120),
+    "25 Sep": (10540, 15560, 13770, None, 8530, 13330, 1950),
+    "2 Oct": (9420, 14220, None, None, 7750, None, 1950),
 }
 
 ROOM_INFO = {
     "Melas 1":   {"t":0,   "desc":"Twin · Sidoutsikt Kav Bar"},
     "Melas 2AB": {"t":0,   "desc":"Double+Twin · Familjerum · Havsutsikt"},
-    "Melas 3":   {"t":1758,"desc":"Double · Full havsutsikt"},
-    "Melas 4":   {"t":1758,"desc":"Twin · Full havsutsikt"},
+    "Melas 3":   {"t":2790,"desc":"Double · Full havsutsikt"},
+    "Melas 4":   {"t":2790,"desc":"Twin · Full havsutsikt"},
     "Melas 8":   {"t":0,   "desc":"Twin · Utsikt mot Ponti"},
     "Kav 2":     {"t":0,   "desc":"Twin · Mot berg norrut"},
     "Kav 3":     {"t":0,   "desc":"Twin · Mot berg norrut"},
     "Kav 4":     {"t":0,   "desc":"Double · Mot gräsmattan"},
     "Kav 9":     {"t":0,   "desc":"Double · Mot poolen"},
-    "Kav 13":    {"t":1320,"desc":"Twin · Övervåning"},
-    "Kav 14":    {"t":1320,"desc":"Double · Mot poolen · Övervåning"},
-    "Kav 15":    {"t":1320,"desc":"Double · Mot poolen · Övervåning"},
-    "Kav 18":    {"t":1320,"desc":"Twin · Havsutsikt · Övervåning"},
-    "Kav 19":    {"t":1320,"desc":"Twin · Mot byn · Övervåning"},
-    "Akti 7":    {"t":1758,"desc":"2-sovrum · Fullt kök · Min 4 pers"},
-    "Akti 8":    {"t":1758,"desc":"2-sovrum · Fullt kök · Min 4 pers"},
-    "Akti 9":    {"t":1758,"desc":"1-sovrum · Pentry"},
-    "Akti 4":    {"t":1320,"desc":"Studio · Pentry · Övervåning"},
-    "Akti 5":    {"t":1320,"desc":"Studio · Pentry · Övervåning"},
-    "Xristina 2":{"t":1320,"desc":"Studio · Havsutsikt på avstånd"},
-    "Xristina 4":{"t":1320,"desc":"Studio · Trädgårdsvy norrut"},
-    "Xristina 6":{"t":1758,"desc":"1-sovrum · 13 jul–15 sep"},
-    "X Bungalow":{"t":1320,"desc":"Eget hus · Mot bergen"},
-    "NM208":     {"t":2638,"desc":"Double · Bergutsikt · New Melas"},
+    "Kav 13":    {"t":1560,"desc":"Twin · Övervåning"},
+    "Kav 14":    {"t":1560,"desc":"Double · Mot poolen · Övervåning"},
+    "Kav 15":    {"t":1560,"desc":"Double · Mot poolen · Övervåning"},
+    "Kav 18":    {"t":1560,"desc":"Twin · Havsutsikt · Övervåning"},
+    "Kav 19":    {"t":1560,"desc":"Twin · Mot byn · Övervåning"},
+    "Akti 7":    {"t":1900,"desc":"2-sovrum · Fullt kök · Min 4 pers"},
+    "Akti 8":    {"t":1900,"desc":"2-sovrum · Fullt kök · Min 4 pers"},
+    "Akti 9":    {"t":1900,"desc":"1-sovrum · Pentry"},
+    "Akti 4":    {"t":1560,"desc":"Studio · Pentry · Övervåning"},
+    "Akti 5":    {"t":1560,"desc":"Studio · Pentry · Övervåning"},
+    "Xristina 2":{"t":1560,"desc":"Studio · Havsutsikt på avstånd"},
+    "Xristina 4":{"t":1560,"desc":"Studio · Trädgårdsvy norrut"},
+    "Xristina 6":{"t":1900,"desc":"1-sovrum · 13 jul–15 sep"},
+    "X Bungalow":{"t":1560,"desc":"Eget hus · Mot bergen"},
+    "NM208":     {"t":3570,"desc":"Double · Bergutsikt · New Melas"},
 }
 
 SECTIONS = [
@@ -154,7 +154,7 @@ def generate_html(data):
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Wildwind – Rumstillgänglighet 2026</title>
+<title>Wildwind – Rumstillgänglighet 2027</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@300;400;600;700&family=Cormorant+Garamond:wght@400;600&display=swap" rel="stylesheet"/>
 <style>
 :root{{
@@ -272,7 +272,7 @@ td.cell{{padding:0;border:1px solid #ece7dc;}}
 <body>
 
 <header>
-  <h1>🌊 Wildwind 2026</h1>
+  <h1>🌊 Wildwind 2027</h1>
   <div style="display:flex;align-items:center;gap:12px;">
     <span class="upd">Uppdaterad: <span id="upd"></span></span>
     <button class="reload" onclick="location.reload(true)">↺ Uppdatera</button>

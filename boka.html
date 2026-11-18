@@ -180,12 +180,13 @@ select:focus,input:focus,textarea:focus{outline:2px solid var(--azure2);outline-
     <div id="paxList"></div>
     <button type="button" class="addbtn" id="addPax">+ Lägg till deltagare</button>
     <div id="delaRum" style="display:none;margin-top:16px">
-      <label>Du reser ensam — kan du tänka dig att dela rum med en annan gäst?</label>
+      <label id="delaFraga">Du reser ensam. Kan du tänka dig att dela rum med en annan gäst?</label>
       <div class="seg" id="segDela">
-        <button type="button" data-d="ja" aria-pressed="true">Ja, gärna</button>
-        <button type="button" data-d="nej" aria-pressed="false">Nej, eget rum</button>
+        <button type="button" data-d="nej" aria-pressed="true">Nej, eget rum</button>
+        <button type="button" data-d="ja" aria-pressed="false">Ja, dela med en annan gäst</button>
+        <button type="button" data-d="alla" aria-pressed="false" id="delaAlla" style="display:none">Vi bor alla i samma rum</button>
       </div>
-      <div class="note">Väljer du eget rum tillkommer enkelrumstillägg per vecka.</div>
+      <div class="note" id="delaNote">Enkelrumstillägget ingår i priset. Kan du dela rum med en annan gäst slipper du det.</div>
     </div>
     <div class="note" id="barnNote" style="display:none">
       Barn 6 till 12 år får 2 790 kr rabatt per vecka (4 460 kr för två veckor) och ungdomar 13 till 17 år 1 390 kr (2 230 kr för två veckor). Rabatten gäller segling och Free as the Wind, inte Healthy Options. Fyll i åldern så räknas den in. För barn under 6 år räknar jag fram priset på offerten.
@@ -275,7 +276,7 @@ const PAKET = [
   {k:'A', namn:'Adventure',               kod:'WWA'},
   {k:'N', namn:'No sport',                kod:'WWN'},
 ];
-const state = {vecka:0, veckor:1, dela:'ja', transfer:'nej', pax:[]};
+const state = {vecka:0, veckor:1, dela:'nej', transfer:'nej', pax:[]};
 const kr = n => n.toLocaleString('sv-SE') + ' kr';
 const $ = id => document.getElementById(id);
 
@@ -416,7 +417,8 @@ function berakna(){
   });
 
   // enkelrumstillägg
-  if(state.pax.length === 1 && state.dela === 'nej'){
+  // udda antal: en person blir över och får eget rum, om man inte väljer att dela eller bo alla tillsammans
+  if(state.pax.length % 2 === 1 && state.dela === 'nej'){
     const t = w.E * state.veckor;
     total += t;
     rader.push({kod:`WWE${sfx}V${w.v}`, lbl:'Enkelrumstillägg', amt:t});
@@ -476,7 +478,18 @@ function berakna(){
 
 function render(){
   fyllRum();
-  $('delaRum').style.display = state.pax.length === 1 ? 'block' : 'none';
+  const nP = state.pax.length, udda = nP % 2 === 1;
+  $('delaRum').style.display = udda ? 'block' : 'none';
+  if(!udda && state.dela !== 'nej'){ state.dela = 'nej'; }
+  if(nP === 1 && state.dela === 'alla'){ state.dela = 'nej'; }
+  $('delaAlla').style.display = nP > 1 ? 'inline-block' : 'none';
+  $('segDela').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed', b.dataset.d===state.dela ? 'true':'false'));
+  $('delaFraga').textContent = nP === 1
+    ? 'Du reser ensam. Kan du tänka dig att dela rum med en annan gäst?'
+    : `Ni är ${nP}, så en av er får eget rum. Kan den personen tänka sig att dela rum med en annan gäst, eller bor ni alla i samma rum?`;
+  $('delaNote').textContent = nP === 1
+    ? 'Enkelrumstillägget ingår i priset. Kan du dela rum med en annan gäst slipper du det.'
+    : 'Enkelrumstillägget för den som får eget rum ingår i priset. Delar personen rum med en annan gäst, eller bor ni alla i ett familjerum eller en lägenhet, slipper ni det.';
   $('transferDetalj').style.display = state.transfer === 'nej' ? 'none' : 'grid';
   const tAnt = Math.max(0, +$('tAntal').value || 0);
   const T = PRIS.transfer;
@@ -526,7 +539,7 @@ function sammanfatta(){
     `Avresa: ${w.label} (vecka ${w.v}) · ${state.veckor} ${state.veckor===1?'vecka':'veckor'}`,
     `Deltagare: ${state.pax.length}${r.barn?` (varav ${r.barn} barn/ungdom)`:''}`,
     `Rumsönskemål: ${$('rum').value || 'inget särskilt (rumstillägg ej medräknat)'}`,
-    state.pax.length===1 ? `Ensamresenär, kan dela rum: ${state.dela}` : null,
+    state.pax.length%2===1 ? `${state.pax.length===1?'Ensamresenär':'Udda antal'}: ${state.dela==='nej'?'eget rum (enkelrumstillägg)':state.dela==='ja'?'kan dela rum med annan gäst':'alla i samma rum'}` : null,
     state.transfer!=='nej' && steg
       ? `Transfer: ${steg.namn}, ${state.transfer==='tor'?'tur & retur':'enkel resa'}, ${tAnt} pers${$('flyg').value?` · ${$('flyg').value}`:' · flyg ej bokat'}`
       : `Transfer: nej tack`,

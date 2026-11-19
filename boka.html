@@ -248,8 +248,14 @@ select:focus,input:focus,textarea:focus{outline:2px solid var(--azure2);outline-
       <div><label for="adress">Adress (valfritt)</label><input type="text" id="adress" autocomplete="street-address"/></div>
     </div>
     <div><label for="ovrigt">Övriga önskemål</label><textarea id="ovrigt" rows="3" placeholder="Allergier, sällskap ni vill bo nära, tidigare erfarenhet ..."></textarea></div>
+    <label style="display:flex;gap:10px;align-items:flex-start;text-transform:none;letter-spacing:0;font-size:13.5px;font-weight:600;color:var(--text);margin-top:14px;cursor:pointer">
+      <input type="checkbox" id="nyhetsbrev" style="margin-top:3px;width:18px;height:18px;flex:none"/>
+      <span>Ja, jag vill få nyhetsbrev från Wildwind via Pia. Du kan avregistrera dig när du vill.</span>
+    </label>
+    <input type="text" id="hp" name="hp" tabindex="-1" autocomplete="off" style="position:absolute;left:-5000px" aria-hidden="true"/>
     <a id="mejla" class="send" style="display:block;text-align:center;text-decoration:none;background:var(--azure);color:#fff;margin-top:16px" href="#">✉ Skicka till Pia</a>
-    <p class="hint" style="margin-top:10px">Öppnas inget mejl? Kopiera sammanställningen och skicka den till <a href="mailto:pia@wildwind.se">pia@wildwind.se</a>.</p>
+    <p class="hint" style="margin-top:10px">När du klickar sparar jag dina uppgifter så att jag kan hantera förfrågan. De delas bara med Wildwind för själva bokningen.</p>
+    <p class="hint" style="margin-top:6px">Öppnas inget mejl? Kopiera sammanställningen och skicka den till <a href="mailto:pia@wildwind.se">pia@wildwind.se</a>.</p>
     <button type="button" class="addbtn" id="kopiera" style="width:100%;padding:13px;font-size:14px">📋 Kopiera min resa</button>
     <pre id="sammanfattning"></pre>
   </div>
@@ -552,6 +558,32 @@ function render(){
   uppdateraMejl();
 }
 
+// Sparar förfrågan i kalkylarket (Google Apps Script). Tom = av.
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbyBDpNtLOCYNdIrJOaCzUjK2BPuJu0rb93KrDvzwTaNnxsEnuSidR-swZz6OBNzqwVEsQ/exec';
+const SIDAN_OPPNAD = Date.now();
+function sparaForfragan(){
+  if(!SHEET_URL) return;
+  const w = PRIS.veckor[state.vecka], r = berakna();
+  const tAnt = Math.max(0,+$('tAntal').value||0);
+  const d = {
+    hp: $('hp').value, sek: Math.round((Date.now()-SIDAN_OPPNAD)/1000), typ: state.typ, namn: $('namn').value, epost: $('epost').value, tel: $('tel').value,
+    adress: $('adress').value, vecka: `${w.label} (v.${w.v})`, veckor: state.veckor, antal: state.pax.length,
+    resenarer: state.pax.map(p=>`${p.namn||'(namn)'} ${p.alder!=null?p.alder+' år':(p.typ==='barn'?'barn':'vuxen')} ${(PAKET.find(x=>x.k===p.paket)||{}).namn||p.paket}`).join('; '),
+    rum: valdaRum().join(', '),
+    boende: state.pax.length%2===1 ? (state.dela==='nej'?'eget rum':state.dela==='ja'?'delar med annan gäst':'alla i samma rum') : '',
+    transfer: state.transfer==='nej' ? 'nej' : `${state.transfer} ${tAnt} pers`,
+    summa: r.total, nyhetsbrev: $('nyhetsbrev').checked, ovrigt: $('ovrigt').value,
+    sammanfattning: sammanfatta()
+  };
+  try{
+    const body = JSON.stringify(d);
+    if(!(navigator.sendBeacon && navigator.sendBeacon(SHEET_URL, new Blob([body],{type:'text/plain'})))){
+      fetch(SHEET_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body,keepalive:true});
+    }
+  }catch(e){}
+}
+$('mejla').addEventListener('click', sparaForfragan);
+
 function uppdateraMejl(){
   const w = PRIS.veckor[state.vecka];
   const subj = `${state.typ}: ${$('namn').value||'Wildwind'} · vecka ${w.v} (${w.label}) · ${state.pax.length} pers`;
@@ -559,6 +591,7 @@ function uppdateraMejl(){
 }
 
 ['tAntal','flyg'].forEach(id=>{ $(id).addEventListener('input', render); });
+$('nyhetsbrev').addEventListener('change', ()=>{ $('sammanfattning').textContent = sammanfatta(); uppdateraMejl(); });
 ['namn','epost','tel','adress','ovrigt'].forEach(id=>{ $(id).addEventListener('input', ()=>{ $('sammanfattning').textContent = sammanfatta(); uppdateraMejl(); }); });
 
 function sammanfatta(){
@@ -589,6 +622,7 @@ function sammanfatta(){
     r.saknas.length ? `\n  OBS: ${r.saknas.join(', ')} saknar publicerat pris för vald vecka.` : null,
     !valdaRum().length ? `\n  OBS: inget rum valt, rumstillägg tillkommer om det rum vi får har ett.` : null,
     $('ovrigt').value ? `\nÖvriga önskemål: ${$('ovrigt').value}` : null,
+    $('nyhetsbrev').checked ? `Vill ha nyhetsbrev: ja` : null,
     `\nPriset är preliminärt. Pia stämmer av med Wildwind innan bokningen bekräftas.`,
   ].filter(x=>x!==null).join('\n');
 }

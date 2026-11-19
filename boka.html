@@ -561,12 +561,21 @@ function render(){
 // Sparar förfrågan i kalkylarket (Google Apps Script). Tom = av.
 const SHEET_URL = 'https://script.google.com/macros/s/AKfycbyBDpNtLOCYNdIrJOaCzUjK2BPuJu0rb93KrDvzwTaNnxsEnuSidR-swZz6OBNzqwVEsQ/exec';
 const SIDAN_OPPNAD = Date.now();
+// 0701234567 -> +46 701234567, så att kalkylarket sparar numret som text (med alla siffror)
+function telefonText(t){
+  t = String(t||'').trim();
+  if(!t) return '';
+  if(t.startsWith('+')) return t;
+  if(t.startsWith('00')) return '+' + t.slice(2);
+  if(t.startsWith('0')) return '+46 ' + t.slice(1).trim();
+  return "Tel " + t;
+}
 function sparaForfragan(){
   if(!SHEET_URL) return;
   const w = PRIS.veckor[state.vecka], r = berakna();
   const tAnt = Math.max(0,+$('tAntal').value||0);
   const d = {
-    hp: $('hp').value, sek: Math.round((Date.now()-SIDAN_OPPNAD)/1000), typ: state.typ, namn: $('namn').value, epost: $('epost').value, tel: $('tel').value,
+    hp: $('hp').value, sek: Math.round((Date.now()-SIDAN_OPPNAD)/1000), typ: state.typ, namn: $('namn').value, epost: $('epost').value, tel: telefonText($('tel').value),
     adress: $('adress').value, vecka: `${w.label} (v.${w.v})`, veckor: state.veckor, antal: state.pax.length,
     resenarer: state.pax.map(p=>`${p.namn||'(namn)'} ${p.alder!=null?p.alder+' år':(p.typ==='barn'?'barn':'vuxen')} ${(PAKET.find(x=>x.k===p.paket)||{}).namn||p.paket}`).join('; '),
     rum: valdaRum().join(', '),

@@ -232,13 +232,14 @@ td.c.dim .dgr,td.c.dim .lbl{opacity:.15}
 #info{position:fixed;right:16px;bottom:16px;max-width:340px;background:#fff;border:1px solid var(--sand2);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.15);padding:16px;display:none;z-index:20}
 #info h3{color:var(--azure);margin-bottom:6px}
 #info .x{position:absolute;top:8px;right:12px;cursor:pointer;border:0;background:none;font-size:18px}
-.ark iframe{width:100%;height:520px;border:1px solid #ece7dc;border-radius:8px;background:#fff}
-.ark a{font-size:12px;color:var(--azure)}
+.knappar{display:flex;gap:10px;flex-wrap:wrap}
+.knapp{display:inline-block;padding:11px 18px;border-radius:30px;background:#fff;border:1px solid var(--azure);color:var(--azure);text-decoration:none;font-weight:700;font-size:13px}
+.knapp:hover{background:var(--azure);color:#fff}
 </style></head><body>
 <header><h1>Pias översikt 2027</h1><span class="upd" id="upd"></span>
 <div class="lankar">
 <a href="__STEPH__" target="_blank" rel="noopener" title="Öppnar Stephs aktuella fil i Dropbox">Stephs original i Dropbox</a>
-<a href="#forf">Förfrågningar</a><a href="#bokade">Bokade</a>
+<a href="https://docs.google.com/spreadsheets/d/__FORF__/edit" target="_blank" rel="noopener">Förfrågningar</a><a href="https://docs.google.com/spreadsheets/d/__BOKADE__/edit" target="_blank" rel="noopener">Bokade</a>
 <a href="boka.html" target="_blank">Boka-sidan</a></div></header>
 
 <div id="las"><h2>Logga in</h2><p style="color:var(--mid)">Sidan visar gästernas namn och är skyddad med lösenord.</p>
@@ -257,12 +258,10 @@ td.c.dim .dgr,td.c.dim .lbl{opacity:.15}
 <label><input type="checkbox" id="baraSe"> Visa bara svenska</label></div>
 <div class="ruta"><table id="tbl"></table></div>
 <p style="font-size:11px;color:var(--mid);margin-top:6px">Varje ruta är en vecka lördag till fredag, delad i sju dagar, så att in- och utcheckning mitt i veckan syns. Håll musen över en ruta för namn och datum, klicka för detaljer. Hämtat ur Stephs lista varje morgon. Svenska bokningar visas alltid i full färg.</p></div>
-<div class="sektion ark" id="forf"><h2>Förfrågningar från sajten</h2>
-<iframe src="https://docs.google.com/spreadsheets/d/__FORF__/edit?rm=minimal" loading="lazy"></iframe>
-<a href="https://docs.google.com/spreadsheets/d/__FORF__/edit" target="_blank" rel="noopener">Öppna i eget fönster</a></div>
-<div class="sektion ark" id="bokade"><h2>Bokade (delas med Steph)</h2>
-<iframe src="https://docs.google.com/spreadsheets/d/__BOKADE__/edit?rm=minimal" loading="lazy"></iframe>
-<a href="https://docs.google.com/spreadsheets/d/__BOKADE__/edit" target="_blank" rel="noopener">Öppna i eget fönster</a></div>
+<div class="sektion ark" id="forf"><h2>Google-arken</h2>
+<p style="color:var(--mid);margin-bottom:10px">Arken öppnas i en egen flik. Safari släpper inte in Google-inloggningen inuti en annan sajt, därför visas de inte här.</p>
+<div class="knappar"><a class="knapp" href="https://docs.google.com/spreadsheets/d/__FORF__/edit" target="_blank" rel="noopener">Förfrågningar från sajten</a>
+<a class="knapp" id="bokade" href="https://docs.google.com/spreadsheets/d/__BOKADE__/edit" target="_blank" rel="noopener">Bokade (delas med Steph)</a></div></div>
 </div>
 <div id="info"><button class="x" onclick="this.parentNode.style.display='none'">×</button><div id="infoTxt"></div></div>
 

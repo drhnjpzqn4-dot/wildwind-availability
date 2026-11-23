@@ -24,52 +24,131 @@ def _is_num(s):
     return bool(re.fullmatch(r"-?\d+(\.\d+)?", s))
 
 
+SKIP_LABELS = ("SAILING ONLY", "HEALTHY OPTIONS ONLY")
+LAND_KODER = ("se", "de", "nl", "uk", "dir", "be", "hu", "it")
+PREFIX = {"MELAS": "Melas", "KAVADIAS": "Kav", "AKTI": "Akti", "XRISTINA": "Xristina",
+          "KALIAS": "Kalias", "ODYSSION": "Odyssion", "TOWER": "Tower villa"}
+SEKTION = [("Melas", "Melas Hotel"), ("Kav", "Kavadias Hotel"), ("Akti", "AKTI Apartments"),
+           ("Xristina", "Xristina Apartments"), ("X Bungalow", "Xristina Apartments"),
+           ("NM", "New Melas")]
+
+
+def _rumsnamn(a, b):
+    """Rumsnamn ur kolumn A och B i Stephs lista, t.ex. MELAS + 7A -> Melas 7A."""
+    a = a.replace("\u039d", "N").replace("\u039c", "M")  # grekiska NM
+    a1 = a.split()[0].upper() if a else ""
+    nr = b.split()[0] if b else ""
+    if a1.startswith("NM"):
+        return a.replace(" ", "").upper()
+    if a1 == "XRISTINA" and nr.upper() == "BUNGALOW":
+        return "X Bungalow"
+    if a1 == "XRISTINA" and "STUDIOS" in a.upper():
+        return "Xristina studios"
+    if a1 == "MELAS" and len(a.split()) > 1:  # "MELAS 18"
+        return "Melas " + a.split()[1]
+    base = PREFIX.get(a1, a.title())
+    if a1 in ("KALIAS", "ODYSSION", "TOWER"):
+        return base
+    return f"{base} {nr}".strip()
+
+
+def _sektion(namn):
+    if namn == "Xristina studios":
+        return "Övriga (vid behov)"
+    for pre, label in SEKTION:
+        if namn.startswith(pre):
+            return label
+    return "Övriga (vid behov)"
+
+
 def build_bookings(df, saturdays, row_to_name, combined):
-    """Per rum och vecka: vem som står bokad (första namnet under veckan)."""
-    rows_for = {}
-    for row, name in row_to_name.items():
-        rows_for.setdefault(name, [])
-    for name in rows_for:
-        if name in combined:
-            rows_for[name] = list(combined[name])
-        else:
-            rows_for[name] = [r for r, n in row_to_name.items() if n == name][:1]
+    """Alla rum i Stephs lista med varje vistelse (ankomst och avresa per dag).
+
+    Pias egna rum (row_to_name) markeras mine=True; övriga visas nertonade på sidan.
+    """
+    dagkol = [c for c in range(3, len(df.columns))
+              if hasattr(df.iloc[0, c], "strftime") and _txt(df.iloc[0, c])]
+    dagar = [df.iloc[0, c].strftime("%Y-%m-%d") for c in dagkol]
+    kol_index = {c: i for i, c in enumerate(dagkol)}
 
     def cell(r, c):
         if r < 0 or r >= len(df) or c < 0 or c >= len(df.columns):
             return ""
         return _txt(df.iloc[r, c])
 
-    out = {}
-    for name, rows in rows_for.items():
-        weeks = []
-        for sat in saturdays:
-            found = []
-            for row in rows:
-                ri = row - 1
-                for d in range(7):
-                    c = sat["col"] + d * 2
-                    v = cell(ri, c)
-                    if v and not _is_num(v):
-                        note = cell(ri + 1, c)
-                        pax = cell(ri + 1, c + 1)
-                        found.append({
-                            "n": v,
-                            "x": note if note and not _is_num(note) else "",
-                            "p": (pax[:-2] if pax.endswith(".0") else pax) if _is_num(pax) else "",
-                            "s": cell(ri + 2, c),
-                            "l": (cell(ri + 3, c) or "uk").lower(),
-                            "d": d,
-                        })
-                        break
-            if not found and weeks and weeks[-1]:
-                # inget namn men rummet är upptaget: samma gäst stannar kvar
-                upptaget = any(cell(row - 1, sat["col"] + d * 2) for row in rows for d in range(7))
-                if upptaget:
-                    found = [dict(b, f=1) for b in weeks[-1]]
-            weeks.append(found or None)
-        out[name] = weeks
-    return out
+    mina_rader = {}
+    for row, name in row_to_name.items():
+        mina_rader[row] = name
+    for name, rows in combined.items():
+        for row in rows:
+            mina_rader[row] = name
+
+    # rumslistan börjar vid första MELAS-raden (ovanför ligger summeringar)
+    forsta = next((ri for ri in range(len(df)) if cell(ri, 0).upper().startswith("MELAS")), 0)
+    rum, ordning, sett = {}, [], set()
+    for ri in range(forsta, len(df)):
+        if cell(ri, 2) != "W" or not cell(ri, 0):
+            continue
+        if any(cell(ri, 0).upper().startswith(x) for x in SKIP_LABELS):
+            continue
+        row = ri + 1
+        mine = row in mina_rader
+        namn = mina_rader.get(row) or _rumsnamn(cell(ri, 0), cell(ri, 1))
+        if namn in sett and not mine:
+            n = 2
+            while f"{namn} {n}" in sett:
+                n += 1
+            namn = f"{namn} {n}"
+        if namn not in rum:
+            desc = " · ".join(x for x in (cell(ri + 1, 0), cell(ri + 1, 1)) if x)
+            rum[namn] = {"mine": mine, "rows": [], "desc": desc.capitalize()}
+            ordning.append(namn)
+            sett.add(namn)
+        rum[namn]["rows"].append(ri)
+
+    ut = {}
+    for namn in ordning:
+        vist = []
+        for ri in rum[namn]["rows"]:
+            akt = None
+            for c in dagkol:
+                v = cell(ri, c)
+                if v and _is_num(v):
+                    v = ""
+                if akt and v == akt["n"] and kol_index[c] == akt["b"]:
+                    akt["b"] += 1
+                    continue
+                if akt:
+                    vist.append(akt); akt = None
+                if v:
+                    note = cell(ri + 1, c)
+                    pax = cell(ri + 1, c + 1)
+                    land = cell(ri + 3, c).lower()
+                    if land and land not in LAND_KODER:
+                        note = " · ".join(x for x in (note, cell(ri + 3, c)) if x and not _is_num(x))
+                        land = ""
+                    akt = {"n": v,
+                           "x": note if note and not _is_num(note) else "",
+                           "p": (pax[:-2] if pax.endswith(".0") else pax) if _is_num(pax) else "",
+                           "s": cell(ri + 2, c),
+                           "l": land or "uk",
+                           "a": kol_index[c], "b": kol_index[c] + 1}
+            if akt:
+                vist.append(akt)
+        # samma gäst i båda raderna av ett kombinerat rum ska bara synas en gång
+        unika = {}
+        for s in vist:
+            unika.setdefault((s["n"], s["a"], s["b"]), s)
+        ut[namn] = {"mine": rum[namn]["mine"], "desc": rum[namn]["desc"],
+                    "stays": sorted(unika.values(), key=lambda s: s["a"])}
+
+    sektioner = {}
+    for namn in ordning:
+        sektioner.setdefault(_sektion(namn), []).append(namn)
+    sektioner = [{"label": k, "rooms": v} for k, v in sektioner.items()]
+    veckor = [{"display": w["display"], "date": w["date"],
+               "d": dagar.index(w["date"]) if w["date"] in dagar else -1} for w in saturdays]
+    return {"days": dagar, "weeks": veckor, "rooms": ut, "sections": sektioner}
 
 
 def _encrypt(plaintext, password):
@@ -89,13 +168,11 @@ def write_admin_page(data, bookings, sections, room_info, updated, path="pia.htm
     if not pw:
         print("PIA_PASSWORD saknas: pia.html skapas inte")
         return False
-    payload = json.dumps({
-        "updated": updated,
-        "weeks": [{"display": w["display"], "date": w["date"]} for w in data["weeks"]],
-        "sections": sections,
-        "room_info": {k: v.get("desc", "") for k, v in room_info.items()},
-        "bookings": bookings,
-    }, ensure_ascii=False)
+    room_desc = {k: v.get("desc", "") for k, v in room_info.items()}
+    for namn, r in bookings["rooms"].items():
+        if namn in room_desc:
+            r["desc"] = room_desc[namn]
+    payload = json.dumps(dict(bookings, updated=updated), ensure_ascii=False)
     enc = _encrypt(payload, pw)
     html = TEMPLATE.replace("__ENC__", json.dumps(enc)) \
                    .replace("__STEPH__", STEPH_URL) \
@@ -138,11 +215,19 @@ th.rum,td.rum{position:sticky;left:0;background:#fff;z-index:2;text-align:left;p
 th{position:sticky;top:0;background:var(--azure);color:#fff;font-size:11px;padding:6px 4px;z-index:3;white-space:nowrap}
 th.rum{z-index:4;background:var(--azure);color:#fff}
 tr.sek td{background:var(--azure);color:#fff;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:4px 8px}
-td.c{width:64px;min-width:64px;height:34px;border:1px solid #f0ebe0;padding:0;cursor:default}
-td.c div{height:100%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;overflow:hidden;white-space:nowrap;padding:0 2px}
+td.c{width:70px;min-width:70px;height:34px;border:1px solid #f0ebe0;padding:0;cursor:default;position:relative}
 td.c.b{cursor:pointer}
-td.c.hold div{background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.7) 0 5px,transparent 5px 10px);outline:2px dashed rgba(0,0,0,.35);outline-offset:-3px}
-td.c.dim{opacity:.18}
+td.c .dgr{display:flex;height:100%}
+td.c .dgr i{flex:1;display:block}
+td.c .dgr i.h{background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.75) 0 4px,transparent 4px 8px)!important}
+td.c .lbl{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;overflow:hidden;white-space:nowrap;padding:0 2px;pointer-events:none}
+td.c .lbl.del{justify-content:flex-start}
+tr.annan td.rum .rn{color:#9a9f9f}
+tr.annan td.rum .rd{color:#b5b5b5}
+tr.annan td.c{background:#f7f7f5}
+tr.annan td.c .dgr i.av{opacity:.28}
+tr.annan td.c .lbl.av{color:#999}
+td.c.dim .dgr,td.c.dim .lbl{opacity:.15}
 .rn{font-weight:700;color:var(--azure);font-size:12px}.rd{font-size:10px;color:var(--mid)}
 #info{position:fixed;right:16px;bottom:16px;max-width:340px;background:#fff;border:1px solid var(--sand2);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.15);padding:16px;display:none;z-index:20}
 #info h3{color:var(--azure);margin-bottom:6px}
@@ -152,7 +237,7 @@ td.c.dim{opacity:.18}
 </style></head><body>
 <header><h1>Pias översikt 2027</h1><span class="upd" id="upd"></span>
 <div class="lankar">
-<a href="__STEPH__" target="_blank" rel="noopener">Stephs Excel</a>
+<a href="__STEPH__" target="_blank" rel="noopener" title="Öppnar Stephs aktuella fil i Dropbox">Stephs original i Dropbox</a>
 <a href="#forf">Förfrågningar</a><a href="#bokade">Bokade</a>
 <a href="boka.html" target="_blank">Boka-sidan</a></div></header>
 
@@ -168,9 +253,10 @@ td.c.dim{opacity:.18}
 <span><i style="background:var(--nl)"></i>Holländska</span><span><i style="background:var(--uk)"></i>Brittiska</span>
 <span><i style="background:var(--dir)"></i>Direkt</span><span><i style="background:var(--ovr)"></i>Övriga</span>
 <span><i style="background:repeating-linear-gradient(45deg,#ccc 0 3px,#fff 3px 6px)"></i>On hold</span>
+<span><i style="background:#f7f7f5;border:1px solid #ddd"></i>Grått rumsnamn = rum du inte säljer</span>
 <label><input type="checkbox" id="baraSe"> Visa bara svenska</label></div>
 <div class="ruta"><table id="tbl"></table></div>
-<p style="font-size:11px;color:var(--mid);margin-top:6px">Håll musen över en ruta för namn, klicka för detaljer. Hämtat ur Stephs lista varje morgon.</p></div>
+<p style="font-size:11px;color:var(--mid);margin-top:6px">Varje ruta är en vecka lördag till fredag, delad i sju dagar, så att in- och utcheckning mitt i veckan syns. Håll musen över en ruta för namn och datum, klicka för detaljer. Hämtat ur Stephs lista varje morgon. Svenska bokningar visas alltid i full färg.</p></div>
 <div class="sektion ark" id="forf"><h2>Förfrågningar från sajten</h2>
 <iframe src="https://docs.google.com/spreadsheets/d/__FORF__/edit?rm=minimal" loading="lazy"></iframe>
 <a href="https://docs.google.com/spreadsheets/d/__FORF__/edit" target="_blank" rel="noopener">Öppna i eget fönster</a></div>
@@ -194,21 +280,41 @@ async function dekryptera(pw){
 }
 const esc = s => String(s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let D = null;
-function beskriv(b){ return `${b.n}${b.x?' · '+b.x:''}${b.p?' · '+b.p+' pers':''}${b.s?' · '+b.s:''} · ${LAND[b.l]||b.l.toUpperCase()}`; }
+const dag = i => new Date(D.days[i]+'T12:00:00');
+function datum(i){
+  if(i < D.days.length) return dag(i).toLocaleDateString('sv-SE',{weekday:'short',day:'numeric',month:'short'});
+  const d = dag(D.days.length-1); d.setDate(d.getDate()+(i-D.days.length+1));
+  return d.toLocaleDateString('sv-SE',{weekday:'short',day:'numeric',month:'short'});
+}
+const nätter = s => s.b - s.a;
+const isHold = s => /hold|hld|option|prel/i.test(s.s||'');
+function period(s){ const n = nätter(s); return `${datum(s.a)} till ${datum(s.b)} (${n} ${n===1?'natt':'nätter'})`; }
+function beskriv(s){ return `${s.n} · ${period(s)}${s.x?' · '+s.x:''}${s.p?' · '+s.p+' pers':''}${s.s?' · '+s.s:''} · ${LAND[s.l]||s.l.toUpperCase()}`; }
+function iVecka(r, w){ const d0 = w.d; return (D.rooms[r].stays||[]).filter(s=>s.a < d0+7 && s.b > d0); }
 function rita(){
   const bara = document.getElementById('baraSe').checked;
   let h = '<thead><tr><th class="rum">Rum</th>' + D.weeks.map(w=>`<th>${esc(w.display)}</th>`).join('') + '</tr></thead><tbody>';
   D.sections.forEach(sec=>{
     h += `<tr class="sek"><td colspan="${D.weeks.length+1}">${esc(sec.label)}</td></tr>`;
     sec.rooms.forEach(r=>{
-      h += `<tr><td class="rum"><div class="rn">${esc(r)}</div><div class="rd">${esc(D.room_info[r]||'')}</div></td>`;
-      (D.bookings[r]||[]).forEach((lst,i)=>{
-        if(!lst){ h += '<td class="c"></td>'; return; }
-        const b = lst[0], hold = /hold|option|prel/i.test(b.s||'');
+      const R = D.rooms[r], annan = !R.mine;
+      h += `<tr class="${annan?'annan':''}"><td class="rum"><div class="rn">${esc(r)}</div><div class="rd">${esc(R.desc||'')}</div></td>`;
+      D.weeks.forEach((w,i)=>{
+        const lst = w.d < 0 ? [] : iVecka(r, w);
+        if(!lst.length){ h += '<td class="c"></td>'; return; }
         const dim = bara && !lst.some(x=>x.l==='se');
-        const f = FARG[b.l] || 'var(--ovr)';
-        const kort = esc(b.n.replace(/\s*x\s*\d+\s*$/i,'').split(/\s+/)[0].slice(0,9));
-        h += `<td class="c b${hold?' hold':''}${dim?' dim':''}" title="${esc(lst.map(beskriv).join('\n'))}" data-r="${esc(r)}" data-i="${i}"><div style="background:${f}">${kort}</div></td>`;
+        let seg = '', mest = null, mestN = 0;
+        lst.forEach(s=>{ const n = Math.min(s.b, w.d+7) - Math.max(s.a, w.d); if(n > mestN){ mest = s; mestN = n; } });
+        for(let k=0;k<7;k++){
+          const s = lst.find(x=>x.a <= w.d+k && x.b > w.d+k);
+          if(!s){ seg += '<i></i>'; continue; }
+          const av = annan && s.l !== 'se';
+          seg += `<i class="${isHold(s)?'h ':''}${av?'av':''}" style="background:${FARG[s.l]||'var(--ovr)'}"></i>`;
+        }
+        const kort = esc(mest.n.replace(/\s*x\s*\d+\s*$/i,'').split(/\s+/)[0].slice(0,9));
+        const del = mestN < 5 ? ' del' : '';
+        const av = annan && mest.l !== 'se' ? ' av' : '';
+        h += `<td class="c b${dim?' dim':''}" title="${esc(lst.map(beskriv).join('\n'))}" data-r="${esc(r)}" data-i="${i}"><div class="dgr">${seg}</div><div class="lbl${del}${av}" style="${del && mest.a > w.d ? 'justify-content:flex-end' : ''}">${kort}</div></td>`;
       });
       h += '</tr>';
     });
@@ -217,14 +323,10 @@ function rita(){
 }
 document.getElementById('tbl').addEventListener('click', e=>{
   const td = e.target.closest('td.b'); if(!td) return;
-  const r = td.dataset.r, i = +td.dataset.i, lst = D.bookings[r][i];
-  // hur länge stannar de? räkna sammanhängande veckor med samma namn
-  const namn = lst[0].n; let a=i, z=i;
-  while(a>0 && (D.bookings[r][a-1]||[]).some(x=>x.n===namn)) a--;
-  while(z<D.weeks.length-1 && (D.bookings[r][z+1]||[]).some(x=>x.n===namn)) z++;
-  document.getElementById('infoTxt').innerHTML = `<h3>${esc(r)} · vecka ${esc(D.weeks[i].display)}</h3>` +
-    lst.map(b=>`<p style="margin:6px 0"><b>${esc(b.n)}</b>${b.x?'<br>'+esc(b.x):''}<br>${b.p?esc(b.p)+' pers · ':''}${esc(b.s||'')} · ${esc(LAND[b.l]||b.l.toUpperCase())}</p>`).join('') +
-    `<p style="font-size:12px;color:var(--mid)">${esc(namn)}: ankomst ${esc(D.weeks[a].display)}, ${z-a+1} ${z>a?'veckor':'vecka'}</p>`;
+  const r = td.dataset.r, w = D.weeks[+td.dataset.i], lst = iVecka(r, w);
+  document.getElementById('infoTxt').innerHTML = `<h3>${esc(r)} · vecka ${esc(w.display)}</h3>` +
+    (D.rooms[r].mine ? '' : '<p style="font-size:12px;color:var(--mid)">Rum som du inte säljer</p>') +
+    lst.map(s=>`<p style="margin:8px 0"><b>${esc(s.n)}</b><br>Ankomst ${esc(datum(s.a))}, avresa ${esc(datum(s.b))}<br>${nätter(s)} ${nätter(s)===1?'natt':'nätter'}${s.x?'<br>'+esc(s.x):''}<br>${s.p?esc(s.p)+' pers · ':''}${esc(s.s||'')} · ${esc(LAND[s.l]||s.l.toUpperCase())}</p>`).join('');
   document.getElementById('info').style.display = 'block';
 });
 document.getElementById('baraSe').addEventListener('change', rita);

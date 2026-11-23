@@ -140,7 +140,7 @@ def parse_availability(path):
         rooms.append({"name":name,"weeks":ws})
         added.add(name)
     print(f"  {len(rooms)} rum klara")
-    return {"weeks":saturdays,"rooms":rooms}
+    return {"weeks":saturdays,"rooms":rooms,"_df":df}
 
 def generate_html(data):
     weeks = data["weeks"]
@@ -477,6 +477,11 @@ def main():
             "sections": SECTIONS,
         }, ensure_ascii=False), encoding='utf-8')
         print("Genererade availability.json")
+        # Pias krypterade adminsida med namn (pia.html), bara om lösenordet finns
+        from admin_page import build_bookings, write_admin_page
+        bookings = build_bookings(data["_df"], data["weeks"], ROW_TO_NAME, COMBINED_ROOMS)
+        write_admin_page(data, bookings, SECTIONS, ROOM_INFO,
+                         datetime.now().strftime("%Y-%m-%d %H:%M"))
         Path("temp_availability.xlsx").unlink(missing_ok=True)
         print("Klar!")
     except Exception as e:
